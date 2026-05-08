@@ -1,98 +1,354 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StatusBar,
+  ImageBackground,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  Dimensions,
+} from "react-native";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+
+const { width, height } = Dimensions.get("window");
 
 export default function HomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <ImageBackground
+        source={{
+          uri: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=2070&auto=format&fit=crop",
+        }}
+        style={styles.heroImage}
+      >
+        <LinearGradient
+          colors={["rgba(0,0,0,0.2)", "rgba(0,0,0,0.7)", "#050816"]}
+          style={styles.overlay}
+        >
+          <SafeAreaView style={{ flex: 1 }}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
+            >
+
+              {/* TOP ROW */}
+              <View style={styles.topRow}>
+                <View style={styles.logoBox}>
+                  <Text style={styles.logoText}>TSC</Text>
+                </View>
+
+                <View style={styles.liveBadge}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveText}>LIVE</Text>
+                </View>
+              </View>
+
+              {/* TITLE */}
+              <Text style={styles.title}>Travel Safe</Text>
+              <Text style={styles.titleGreen}>Anywhere</Text>
+
+              {/* SUBTITLE */}
+              <Text style={styles.subtitle}>
+                Smart global protection for travelers,
+                transport systems and emergency response.
+              </Text>
+
+              {/* MAP CARD */}
+              <View style={styles.mapCard}>
+                <ImageBackground
+                  source={{
+                    uri: "https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=1974&auto=format&fit=crop",
+                  }}
+                  style={styles.mapImage}
+                >
+                  <LinearGradient
+                    colors={["transparent", "rgba(0,0,0,0.85)"]}
+                    style={styles.mapOverlay}
+                  >
+                    <Text style={styles.mapTitle}>
+                      Global Tracking
+                    </Text>
+                    <Text style={styles.mapSubtitle}>
+                      GPS • AI Safety • SOS Alerts
+                    </Text>
+                  </LinearGradient>
+                </ImageBackground>
+              </View>
+
+              {/* TRANSPORT GRID */}
+              <View style={styles.transportGrid}>
+                <View style={styles.transportCard}>
+                  <Text style={styles.transportEmoji}>✈️</Text>
+                  <Text style={styles.transportTitle}>Flights</Text>
+                </View>
+
+                <View style={styles.transportCard}>
+                  <Text style={styles.transportEmoji}>🚌</Text>
+                  <Text style={styles.transportTitle}>Transit</Text>
+                </View>
+
+                <View style={styles.transportCard}>
+                  <Text style={styles.transportEmoji}>🚗</Text>
+                  <Text style={styles.transportTitle}>Cars</Text>
+                </View>
+
+                <View style={styles.transportCard}>
+                  <Text style={styles.transportEmoji}>🚨</Text>
+                  <Text style={styles.transportTitle}>SOS</Text>
+                </View>
+              </View>
+
+              {/* STATS */}
+              <View style={styles.statsContainer}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>24/7</Text>
+                  <Text style={styles.statLabel}>Monitoring</Text>
+                </View>
+
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>AI</Text>
+                  <Text style={styles.statLabel}>Protection</Text>
+                </View>
+
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>GPS</Text>
+                  <Text style={styles.statLabel}>Tracking</Text>
+                </View>
+              </View>
+
+              {/* BUTTONS */}
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => router.push("/(auth)/register")}
+              >
+                <LinearGradient
+                  colors={["#00E5A8", "#00C896"]}
+                  style={styles.buttonGradient}
+                >
+                  <Text style={styles.primaryButtonText}>
+                    Create Account
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => router.push("/(auth)/login")}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  Login
+                </Text>
+              </TouchableOpacity>
+
+            </ScrollView>
+          </SafeAreaView>
+        </LinearGradient>
+      </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#050816",
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+
+  heroImage: {
+    width,
+    height,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+
+  overlay: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 30,
+  },
+
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 30,
+  },
+
+  logoBox: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+    backgroundColor: "rgba(0,229,168,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  logoText: {
+    color: "#00E5A8",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+
+  liveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#00E5A8",
+    marginRight: 6,
+  },
+
+  liveText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "700",
+  },
+
+  title: {
+    color: "#fff",
+    fontSize: 28,
+    fontWeight: "900",
+  },
+
+  titleGreen: {
+    color: "#00E5A8",
+    fontSize: 28,
+    fontWeight: "900",
+    marginBottom: 10,
+  },
+
+  subtitle: {
+    color: "#CBD5E1",
+    fontSize: 12,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+
+  mapCard: {
+    height: 160,
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 20,
+  },
+
+  mapImage: {
+    width: "100%",
+    height: "100%",
+  },
+
+  mapOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    padding: 14,
+  },
+
+  mapTitle: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  mapSubtitle: {
+    color: "#CBD5E1",
+    fontSize: 10,
+  },
+
+  transportGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+
+  transportCard: {
+    width: "48%",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  transportEmoji: {
+    fontSize: 22,
+    marginBottom: 6,
+  },
+
+  transportTitle: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+
+  statsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 20,
+  },
+
+  statCard: {
+    width: "31%",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+
+  statNumber: {
+    color: "#00E5A8",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+
+  statLabel: {
+    color: "#CBD5E1",
+    fontSize: 9,
+  },
+
+  primaryButton: {
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+
+  buttonGradient: {
+    paddingVertical: 14,
+    borderRadius: 16,
+  },
+
+  primaryButtonText: {
+    textAlign: "center",
+    color: "#000",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  secondaryButton: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#00E5A8",
+    paddingVertical: 14,
+    borderRadius: 16,
+  },
+
+  secondaryButtonText: {
+    textAlign: "center",
+    color: "#00E5A8",
+    fontSize: 14,
+    fontWeight: "800",
   },
 });
