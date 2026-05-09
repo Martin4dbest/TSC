@@ -11,13 +11,13 @@ import {
   StatusBar,
 } from "react-native";
 import { useRouter } from "expo-router";
+import API from "../../services/api";
 
 export default function RegisterScreen() {
   const router = useRouter();
 
-  // ✅ simplified state (no TS issues)
   const [form, setForm] = useState({
-    name: "",
+    full_name: "",
     email: "",
     phone: "",
     password: "",
@@ -25,48 +25,37 @@ export default function RegisterScreen() {
 
   const [loading, setLoading] = useState(false);
 
-  // ✅ FIXED: removed TypeScript annotations
   const handleChange = (key, value) => {
-    setForm({
-      ...form,
+    setForm((prev) => ({
+      ...prev,
       [key]: value,
-    });
+    }));
   };
 
   const handleRegister = async () => {
-    if (!form.name || !form.email || !form.password) {
-      Alert.alert("Error", "Please fill required fields");
+    if (!form.full_name || !form.email || !form.password) {
+      Alert.alert("Error", "Full name, email and password are required");
       return;
     }
 
     try {
       setLoading(true);
 
-      const response = await fetch(
-        "http://YOUR_BACKEND_IP:8000/register",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(form),
-        }
-      );
+      const res = await API.post("/auth/register", form);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.message || "Registration failed");
-      }
+      console.log("REGISTER SUCCESS:", res.data);
 
       Alert.alert("Success", "Account created successfully");
 
       router.replace("/(auth)/login");
     } catch (error) {
-      Alert.alert(
-        "Error",
-        error?.message || "Something went wrong"
-      );
+      const message =
+        error?.response?.data?.detail ||
+        error?.response?.data?.message ||
+        error.message ||
+        "Something went wrong";
+
+      Alert.alert("Error", message);
     } finally {
       setLoading(false);
     }
@@ -85,13 +74,15 @@ export default function RegisterScreen() {
         placeholder="Full Name"
         placeholderTextColor="#94A3B8"
         style={styles.input}
-        onChangeText={(v) => handleChange("name", v)}
+        onChangeText={(v) => handleChange("full_name", v)}
       />
 
       <TextInput
         placeholder="Email"
         placeholderTextColor="#94A3B8"
         style={styles.input}
+        autoCapitalize="none"
+        keyboardType="email-address"
         onChangeText={(v) => handleChange("email", v)}
       />
 
@@ -99,6 +90,7 @@ export default function RegisterScreen() {
         placeholder="Phone"
         placeholderTextColor="#94A3B8"
         style={styles.input}
+        keyboardType="phone-pad"
         onChangeText={(v) => handleChange("phone", v)}
       />
 
@@ -124,9 +116,7 @@ export default function RegisterScreen() {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity
-        onPress={() => router.push("/(auth)/login")}
-      >
+      <TouchableOpacity onPress={() => router.push("/(auth)/login")}>
         <Text style={styles.link}>
           Already have an account? Login
         </Text>

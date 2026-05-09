@@ -1,13 +1,26 @@
 # app/api/v1/auth.py
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from app.schemas.user import UserCreate, UserLogin, Token
-from app.services.auth_service import register_user, login_user, create_access_token
-from app.db.session import get_db
 import jwt
+
+from app.schemas.user import UserCreate, UserLogin, Token
+from app.services.auth_service import (
+    register_user,
+    login_user,
+    create_access_token
+)
+from app.db.session import get_db
 from app.core.config import settings
 
+# IMPORTANT: adjust this import to your project structure
+from app.services.auth_service import decode_token_and_get_user
+
+
 router = APIRouter()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
 # -------------------------------
@@ -28,7 +41,7 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
 
         return {
             "access_token": access_token,
-            "refresh_token": access_token,  # temporary (until refresh is fully implemented)
+            "refresh_token": access_token,
             "token_type": "bearer"
         }
 
@@ -49,24 +62,54 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
             password=data.password
         )
 
-        # Your service already returns token
         return {
             "access_token": result["access_token"],
-            "refresh_token": result["access_token"],  # temporary
+            "refresh_token": result["access_token"],
             "token_type": "bearer"
         }
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e)
+        )
 
 
 # -------------------------------
-# REFRESH TOKEN (OPTIONAL FOR NOW)
+# GET CURRENT USER (FIX FOR YOUR DASHBOARD)
+# -------------------------------
+@router.get("/me")
+def get_me(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    try:
+        user = decode_token_and_get_user(token, db)
+
+        return {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=401,
+            detail=str(e)
+        )
+
+
+# -------------------------------
+# REFRESH TOKEN
 # -------------------------------
 @router.post("/refresh", response_model=Token)
 def refresh_token(token: str):
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
 
         user_id = int(payload.get("sub"))
 

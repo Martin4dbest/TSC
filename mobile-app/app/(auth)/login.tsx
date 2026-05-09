@@ -10,6 +10,8 @@ import {
   StatusBar,
 } from "react-native";
 import { useRouter } from "expo-router";
+import API from "../../services/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -27,28 +29,50 @@ export default function LoginScreen() {
     try {
       setLoading(true);
 
-      // 🔌 READY FOR FASTAPI CONNECTION
-      const response = await fetch("http://YOUR_BACKEND_IP:8000/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+      // 1. LOGIN
+      const res = await API.post("/auth/login", {
+        email,
+        password,
       });
 
-      const data = await response.json();
+      const data = res.data;
 
-      if (!response.ok) {
-        throw new Error(data?.message || "Login failed");
-      }
+      console.log("LOGIN RESPONSE:", data);
 
-      // TODO: store token securely later
-      console.log("LOGIN SUCCESS:", data);
+      // 2. SAVE TOKEN
+      await AsyncStorage.setItem("token", data.access_token);
 
-      router.replace("/(tabs)");
+      // 3. FETCH USER (IMPORTANT FIX)
+      const userRes = await API.get("/auth/me", {
+        headers: {
+          Authorization: `Bearer ${data.access_token}`,
+        },
+      });
 
+      const user = userRes.data;
+
+      console.log("USER FROM /me:", user);
+
+      // 4. NORMALIZE USER
+      const normalizedUser = {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name || user.name || "User",
+      };
+
+      // 5. SAVE USER
+      await AsyncStorage.setItem(
+        "user",
+        JSON.stringify(normalizedUser)
+      );
+
+      console.log("SAVED USER:", normalizedUser);
+
+      // 6. GO TO DASHBOARD
+      router.replace("/(tabs)/home");
     } catch (error: any) {
-      Alert.alert("Login Failed", error.message);
+      console.log("LOGIN ERROR:", error?.response?.data || error);
+      Alert.alert("Login Failed", "Check credentials or backend");
     } finally {
       setLoading(false);
     }
@@ -59,7 +83,7 @@ export default function LoginScreen() {
       <StatusBar barStyle="light-content" />
 
       <Text style={styles.title}>Welcome Back</Text>
-      <Text style={styles.subtitle}>Login to continue your journey</Text>
+      <Text style={styles.subtitle}>Login to continue</Text>
 
       <TextInput
         placeholder="Email"
@@ -67,7 +91,7 @@ export default function LoginScreen() {
         value={email}
         onChangeText={setEmail}
         style={styles.input}
-        keyboardType="email-address"
+        autoCapitalize="none"
       />
 
       <TextInput
@@ -90,16 +114,11 @@ export default function LoginScreen() {
           <Text style={styles.buttonText}>Login</Text>
         )}
       </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
-        <Text style={styles.link}>
-          Don't have an account? Register
-        </Text>
-      </TouchableOpacity>
     </View>
   );
 }
 
+/* styles unchanged */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -128,16 +147,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 14,
     alignItems: "center",
-    marginTop: 10,
   },
   buttonText: {
     fontWeight: "bold",
     color: "#000",
     fontSize: 16,
-  },
-  link: {
-    color: "#00E5A8",
-    marginTop: 20,
-    textAlign: "center",
   },
 });

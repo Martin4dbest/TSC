@@ -8,29 +8,37 @@ from app.api.v1 import auth, users, wallet, admin, tracking, emergency
 app = FastAPI(title="TSC API")
 
 # -------------------------
-# CORS FIX (IMPORTANT)
+# CORS FIX (OK FOR DEV)
 # -------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "*",  # ⚠️ keep for dev only
+        "*"  # ⚠️ dev only
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# -------------------------
+# HEALTH CHECK
+# -------------------------
 @app.get("/")
 def root():
     return {"message": "TSC Backend Running"}
 
+# -------------------------
+# FAVICON
+# -------------------------
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return FileResponse("favicon.ico")
 
-# Register all routes
+# -------------------------
+# ROUTES
+# -------------------------
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
 app.include_router(wallet.router, prefix="/api/v1/wallet", tags=["Wallet"])

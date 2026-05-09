@@ -46,7 +46,7 @@ export default function LoginPage() {
       if (role === "superadmin") {
         router.push("/dashboard");
       } else {
-        router.push("/");
+        router.push("/dashboard");
       }
     } catch (err: any) {
       setError(err.message || "Login failed");

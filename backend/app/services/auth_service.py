@@ -25,7 +25,7 @@ def register_user(
     phone: str = None,
     password: str = None,
     full_name: str = None,
-    role: str = "admin"
+    role: str = "user"   # ✅ FIXED: default is user
 ):
 
     if not email and not phone:
@@ -49,7 +49,7 @@ def register_user(
         phone=phone,
         full_name=full_name,
         hashed_password=hash_password(password),
-        role=role
+        role="user"   # ✅ FIXED: always force normal user
     )
 
     db.add(user)
@@ -133,3 +133,30 @@ def create_refresh_token(user_id: int):
     )
 
     return token
+
+
+def decode_token_and_get_user(token: str, db):
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
+
+        user_id = payload.get("sub")
+
+        if not user_id:
+            raise Exception("Invalid token payload")
+
+        user = db.query(User).filter(User.id == user_id).first()
+
+        if not user:
+            raise Exception("User not found")
+
+        return user
+
+    except jwt.ExpiredSignatureError:
+        raise Exception("Token expired")
+
+    except jwt.InvalidTokenError:
+        raise Exception("Invalid token")
