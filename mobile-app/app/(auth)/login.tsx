@@ -12,6 +12,7 @@ import {
 import { useRouter } from "expo-router";
 import API from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -42,7 +44,7 @@ export default function LoginScreen() {
       // 2. SAVE TOKEN
       await AsyncStorage.setItem("token", data.access_token);
 
-      // 3. FETCH USER (IMPORTANT FIX)
+      // 3. FETCH USER
       const userRes = await API.get("/auth/me", {
         headers: {
           Authorization: `Bearer ${data.access_token}`,
@@ -70,7 +72,7 @@ export default function LoginScreen() {
 
       // 6. GO TO DASHBOARD
       router.replace("/(tabs)/home");
-    } catch (error: any) {
+    } catch (error) {
       console.log("LOGIN ERROR:", error?.response?.data || error);
       Alert.alert("Login Failed", "Check credentials or backend");
     } finally {
@@ -94,14 +96,27 @@ export default function LoginScreen() {
         autoCapitalize="none"
       />
 
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor="#94A3B8"
-        value={password}
-        onChangeText={setPassword}
-        style={styles.input}
-        secureTextEntry
-      />
+      {/* PASSWORD FIELD WITH EYE */}
+      <View style={styles.passwordContainer}>
+        <TextInput
+          placeholder="Password"
+          placeholderTextColor="#94A3B8"
+          value={password}
+          onChangeText={setPassword}
+          style={styles.passwordInput}
+          secureTextEntry={!showPassword}
+        />
+
+        <TouchableOpacity
+          onPress={() => setShowPassword(!showPassword)}
+        >
+          <Ionicons
+            name={showPassword ? "eye-off" : "eye"}
+            size={22}
+            color="#94A3B8"
+          />
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity
         style={styles.button}
@@ -118,7 +133,6 @@ export default function LoginScreen() {
   );
 }
 
-/* styles unchanged */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -126,15 +140,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
   },
+
   title: {
     fontSize: 34,
     fontWeight: "bold",
     color: "#fff",
   },
+
   subtitle: {
     color: "#94A3B8",
     marginBottom: 30,
   },
+
   input: {
     backgroundColor: "#0F172A",
     color: "#fff",
@@ -142,12 +159,29 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginBottom: 16,
   },
+
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0F172A",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+
+  passwordInput: {
+    flex: 1,
+    color: "#fff",
+    paddingVertical: 16,
+  },
+
   button: {
     backgroundColor: "#00E5A8",
     padding: 16,
     borderRadius: 14,
     alignItems: "center",
   },
+
   buttonText: {
     fontWeight: "bold",
     color: "#000",

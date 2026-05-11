@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -7,11 +7,13 @@ import {
   ScrollView,
   StatusBar,
   Alert,
+  ActivityIndicator,
+  Animated,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
+import API from "../../services/api";
 
 export default function HomeDashboard() {
   const router = useRouter();
@@ -19,81 +21,193 @@ export default function HomeDashboard() {
   const [user, setUser] = useState<any>(null);
   const [now, setNow] = useState(new Date());
 
-  // =========================
-  // LOAD USER (FIXED - IMPORTANT)
-  // =========================
-  useFocusEffect(
-    useCallback(() => {
-      const loadUser = async () => {
-        try {
-          const u = await AsyncStorage.getItem("user");
+  // SOS STATES
+  const [sendingSOS, setSendingSOS] = useState(false);
+  const [status, setStatus] = useState<
+    "idle" | "preparing" | "sending" | "sent" | "failed"
+  >("idle");
 
-          console.log("USER FROM STORAGE:", u);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
-          if (u) {
-            setUser(JSON.parse(u));
-          } else {
-            setUser(null);
-          }
-        } catch (err) {
-          console.log("ERROR LOADING USER:", err);
-        }
-      };
+  // BLINK ANIMATION
+  const blink = useRef(new Animated.Value(1)).current;
 
-      loadUser();
-    }, [])
-  );
+  useEffect(() => {
+    if (sendingSOS || status === "sending") {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(blink, {
+            toValue: 0.3,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(blink, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      blink.setValue(1);
+    }
+  }, [sendingSOS, status]);
 
-  // =========================
+  // LOAD USER
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const u = await AsyncStorage.getItem("user");
+        if (u) setUser(JSON.parse(u));
+      } catch (err) {
+        console.log("USER LOAD ERROR:", err);
+      }
+    };
+    loadUser();
+  }, []);
+
   // CLOCK
-  // =========================
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // =========================
-  // LOGOUT
-  // =========================
   const logout = async () => {
     await AsyncStorage.clear();
     router.replace("/(auth)/login");
   };
 
-  // =========================
-  // SOS
-  // =========================
+  // SIMULATED GPS (replace later with real GPS)
+  const getLocation = async () => {
+    return {
+      latitude: 6.5244,
+      longitude: 3.3792,
+    };
+  };
+
+  // REAL SOS FLOW
+  const sendSOS = async () => {
+    try {
+      setStatus("sending");
+      setSendingSOS(true);
+
+      const token = await AsyncStorage.getItem("token");
+      const userString = await AsyncStorage.getItem("user");
+      const currentUser = JSON.parse(userString || "{}");
+
+      const location = await getLocation();
+
+      const res = await API.post(
+        "/emergency/sos",
+        {
+          user_id: currentUser.id,
+          full_name: currentUser.full_name,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          message: "EMERGENCY ALERT 🚨 User needs help!",
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      console.log("SOS SUCCESS:", res.data);
+
+      setStatus("sent");
+      Alert.alert("🚨 SOS SENT", "Emergency team notified!");
+
+      setTimeout(() => setStatus("idle"), 3000);
+    } catch (err) {
+      console.log("SOS ERROR:", err);
+      setStatus("failed");
+
+      Alert.alert("SOS FAILED", "Could not send emergency alert");
+    } finally {
+      setSendingSOS(false);
+      setCountdown(null);
+    }
+  };
+
+  // COUNTDOWN BEFORE SOS
   const handleSOS = () => {
-    Alert.alert("🚨 Emergency Alert", "Send SOS?", [
+    Alert.alert("🚨 EMERGENCY ALERT", "Send SOS in 3 seconds?", [
       { text: "Cancel", style: "cancel" },
       {
-        text: "SEND",
+        text: "START",
         style: "destructive",
-        onPress: () => console.log("SOS TRIGGERED"),
+        onPress: () => {
+          setStatus("preparing");
+
+          let count = 3;
+          setCountdown(count);
+
+          const interval = setInterval(() => {
+            count -= 1;
+            setCountdown(count);
+
+            if (count <= 0) {
+              clearInterval(interval);
+              setCountdown(null);
+              sendSOS();
+            }
+          }, 1000);
+        },
       },
     ]);
+  };
+
+  const getStatusColor = () => {
+    switch (status) {
+      case "sending":
+        return "#EF4444";
+      case "sent":
+        return "#00E5A8";
+      case "failed":
+        return "orange";
+      case "preparing":
+        return "#F59E0B";
+      default:
+        return "#94A3B8";
+    }
   };
 
   return (
     <ScrollView style={styles.container}>
       <StatusBar barStyle="light-content" />
 
+      {/* STATUS BANNER */}
+      <Animated.View
+        style={[
+          styles.banner,
+          { opacity: blink, borderColor: getStatusColor() },
+        ]}
+      >
+        <Text style={styles.bannerText}>
+          STATUS: {status.toUpperCase()}
+        </Text>
+
+        {countdown !== null && (
+          <Text style={styles.countdown}>
+            Sending in {countdown}...
+          </Text>
+        )}
+      </Animated.View>
+
       {/* HEADER */}
       <View style={styles.header}>
         <Text style={styles.greeting}>
-          👋 Hello, {user?.full_name ?? user?.name ?? "User"}
+          👋 Hello, {user?.full_name || "User"}
         </Text>
 
-        <Text style={styles.clock}>{now.toDateString()}</Text>
+        <Text style={styles.clock}>
+          {now.toDateString()}
+        </Text>
 
-        <Text style={styles.time}>{now.toLocaleTimeString()}</Text>
-
-        <View style={styles.statusRow}>
-          <View style={styles.dot} />
-          <Text style={styles.statusText}>
-            System Active • Protected
-          </Text>
-        </View>
+        <Text style={styles.time}>
+          {now.toLocaleTimeString()}
+        </Text>
       </View>
 
       {/* STATUS CARD */}
@@ -101,7 +215,7 @@ export default function HomeDashboard() {
         <Text style={styles.cardTitle}>🛡 Safety Status</Text>
         <Text style={styles.safe}>YOU ARE SAFE</Text>
         <Text style={styles.cardSub}>
-          All systems running normally
+          Real-time monitoring active
         </Text>
       </View>
 
@@ -128,16 +242,27 @@ export default function HomeDashboard() {
         </TouchableOpacity>
       </View>
 
-      {/* SOS BUTTON */}
-      <TouchableOpacity style={styles.sosButton} onPress={handleSOS}>
-        <Text style={styles.sosText}>🚨 EMERGENCY SOS</Text>
+      {/* BIG SOS */}
+      <TouchableOpacity
+        style={[
+          styles.sosButton,
+          status === "sending" && styles.sosActive,
+        ]}
+        onPress={handleSOS}
+        disabled={sendingSOS}
+      >
+        {sendingSOS ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.sosText}>
+            🚨 EMERGENCY SOS
+          </Text>
+        )}
       </TouchableOpacity>
 
       {/* LOGOUT */}
       <TouchableOpacity style={styles.logout} onPress={logout}>
-        <Text style={{ color: "#fff", textAlign: "center" }}>
-          Logout
-        </Text>
+        <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -153,8 +278,26 @@ const styles = StyleSheet.create({
     padding: 20,
   },
 
+  banner: {
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+
+  bannerText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  countdown: {
+    color: "#F59E0B",
+    marginTop: 5,
+    fontSize: 18,
+  },
+
   header: {
-    marginTop: 20,
+    marginTop: 10,
     marginBottom: 25,
   },
 
@@ -175,25 +318,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     marginTop: 4,
-  },
-
-  statusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-  },
-
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#00E5A8",
-    marginRight: 8,
-  },
-
-  statusText: {
-    color: "#94A3B8",
-    fontSize: 12,
   },
 
   card: {
@@ -247,11 +371,15 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 14,
     marginTop: 20,
+    alignItems: "center",
+  },
+
+  sosActive: {
+    backgroundColor: "#7F1D1D",
   },
 
   sosText: {
     color: "#fff",
-    textAlign: "center",
     fontWeight: "bold",
   },
 
@@ -260,5 +388,10 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: "#1F2937",
     borderRadius: 14,
+  },
+
+  logoutText: {
+    color: "#fff",
+    textAlign: "center",
   },
 });

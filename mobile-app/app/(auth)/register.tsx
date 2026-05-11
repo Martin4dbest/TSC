@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import API from "../../services/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -24,6 +26,7 @@ export default function RegisterScreen() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (key, value) => {
     setForm((prev) => ({
@@ -66,10 +69,9 @@ export default function RegisterScreen() {
       <StatusBar barStyle="light-content" />
 
       <Text style={styles.title}>Create Account</Text>
-      <Text style={styles.subtitle}>
-        Join TSC global safety network
-      </Text>
+      <Text style={styles.subtitle}>Join TSC global safety network</Text>
 
+      {/* FULL NAME */}
       <TextInput
         placeholder="Full Name"
         placeholderTextColor="#94A3B8"
@@ -77,6 +79,7 @@ export default function RegisterScreen() {
         onChangeText={(v) => handleChange("full_name", v)}
       />
 
+      {/* EMAIL */}
       <TextInput
         placeholder="Email"
         placeholderTextColor="#94A3B8"
@@ -86,6 +89,7 @@ export default function RegisterScreen() {
         onChangeText={(v) => handleChange("email", v)}
       />
 
+      {/* PHONE */}
       <TextInput
         placeholder="Phone"
         placeholderTextColor="#94A3B8"
@@ -94,14 +98,28 @@ export default function RegisterScreen() {
         onChangeText={(v) => handleChange("phone", v)}
       />
 
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor="#94A3B8"
-        secureTextEntry
-        style={styles.input}
-        onChangeText={(v) => handleChange("password", v)}
-      />
+      {/* PASSWORD (MATCH LOGIN STYLE) */}
+      <View style={styles.passwordContainer}>
+        <TextInput
+          placeholder="Password"
+          placeholderTextColor="#94A3B8"
+          style={styles.passwordInput}
+          secureTextEntry={!showPassword}
+          onChangeText={(v) => handleChange("password", v)}
+        />
 
+        <TouchableOpacity
+          onPress={() => setShowPassword(!showPassword)}
+        >
+          <Ionicons
+            name={showPassword ? "eye-off" : "eye"}
+            size={22}
+            color="#94A3B8"
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* BUTTON */}
       <TouchableOpacity
         style={styles.button}
         onPress={handleRegister}
@@ -110,12 +128,11 @@ export default function RegisterScreen() {
         {loading ? (
           <ActivityIndicator color="#000" />
         ) : (
-          <Text style={styles.buttonText}>
-            Create Account
-          </Text>
+          <Text style={styles.buttonText}>Create Account</Text>
         )}
       </TouchableOpacity>
 
+      {/* LOGIN LINK */}
       <TouchableOpacity onPress={() => router.push("/(auth)/login")}>
         <Text style={styles.link}>
           Already have an account? Login
@@ -125,6 +142,9 @@ export default function RegisterScreen() {
   );
 }
 
+/* =========================
+   STYLES (MATCH LOGIN)
+========================= */
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
@@ -132,35 +152,55 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
   },
+
   title: {
     fontSize: 34,
     fontWeight: "bold",
     color: "#fff",
   },
+
   subtitle: {
     color: "#94A3B8",
     marginBottom: 30,
     marginTop: 8,
   },
+
   input: {
     backgroundColor: "#0F172A",
     color: "#fff",
     padding: 16,
     borderRadius: 14,
-    marginBottom: 14,
+    marginBottom: 16,
   },
+
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0F172A",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+
+  passwordInput: {
+    flex: 1,
+    color: "#fff",
+    paddingVertical: 16,
+  },
+
   button: {
     backgroundColor: "#00E5A8",
     padding: 16,
     borderRadius: 14,
     alignItems: "center",
-    marginTop: 10,
   },
+
   buttonText: {
     fontWeight: "bold",
     color: "#000",
     fontSize: 16,
   },
+
   link: {
     color: "#00E5A8",
     marginTop: 20,

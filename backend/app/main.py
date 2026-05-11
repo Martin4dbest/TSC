@@ -2,20 +2,31 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-# Import routers
 from app.api.v1 import auth, users, wallet, admin, tracking, emergency
+
+# 🔥 IMPORT MODELS (forces registration)
+import app.models
+
+# 🔥 IMPORT DB ENGINE + BASE
+from app.db.base_class import Base
+from app.db.session import engine
 
 app = FastAPI(title="TSC API")
 
 # -------------------------
-# CORS FIX (OK FOR DEV)
+# CREATE TABLES (CRITICAL FIX)
+# -------------------------
+Base.metadata.create_all(bind=engine)
+
+# -------------------------
+# CORS
 # -------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "*"  # ⚠️ dev only
+        "*"
     ],
     allow_credentials=True,
     allow_methods=["*"],

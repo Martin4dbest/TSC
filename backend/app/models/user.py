@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
-from app.db.base import Base
+from sqlalchemy.orm import relationship
+from app.db.base_class import Base
 import enum
 from datetime import datetime
 
@@ -29,15 +30,16 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
 
     # -----------------------
-    # ROLE (FIXED)
+    # ROLE (FIXED SAFE ENUM)
     # -----------------------
     role = Column(
         Enum(
             UserRole,
             name="userrole",
-            values_callable=lambda enum_cls: [e.value for e in enum_cls]
+            native_enum=False,   # 🔥 IMPORTANT FIX (prevents DB mismatch issues)
+            values_callable=lambda x: [e.value for e in x]
         ),
-        default=UserRole.USER,
+        default=UserRole.USER.value,
         nullable=False
     )
 
@@ -46,6 +48,15 @@ class User(Base):
     # -----------------------
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
+
+    # -----------------------
+    # RELATIONSHIP
+    # -----------------------
+    emergencies = relationship(
+        "EmergencyAlert",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
 
     # -----------------------
     # TIMESTAMPS
