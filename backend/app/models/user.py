@@ -30,13 +30,13 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
 
     # -----------------------
-    # ROLE (FIXED SAFE ENUM)
+    # ROLE (SAFE FIX)
     # -----------------------
     role = Column(
         Enum(
             UserRole,
             name="userrole",
-            native_enum=False,   # 🔥 IMPORTANT FIX (prevents DB mismatch issues)
+            native_enum=False,  # keeps NeonDB safe
             values_callable=lambda x: [e.value for e in x]
         ),
         default=UserRole.USER.value,

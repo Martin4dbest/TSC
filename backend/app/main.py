@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+import os
 
 from app.api.v1 import auth, users, wallet, admin, tracking, emergency
 
@@ -14,9 +17,20 @@ from app.db.session import engine
 app = FastAPI(title="TSC API")
 
 # -------------------------
+# AUTO CREATE UPLOAD FOLDERS (FIX)
+# -------------------------
+os.makedirs("uploads", exist_ok=True)
+os.makedirs("uploads/screenshots", exist_ok=True)
+
+# -------------------------
 # CREATE TABLES (CRITICAL FIX)
 # -------------------------
 Base.metadata.create_all(bind=engine)
+
+# -------------------------
+# STATIC FILES (UPLOADS FIX)
+# -------------------------
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # -------------------------
 # CORS

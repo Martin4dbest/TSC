@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -18,7 +18,10 @@ import {
   Lock,
   LogOut,
   ServerCog,
+  Activity,
 } from "lucide-react";
+
+const BASE_URL = "http://10.66.220.196:8000";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -26,13 +29,13 @@ export default function Dashboard() {
   const [role, setRole] = useState<"admin" | "superadmin">("admin");
   const [darkMode, setDarkMode] = useState(true);
   const [status, setStatus] = useState("Checking systems...");
+  const [loading, setLoading] = useState(true);
 
-  // REAL backend stats (NO FAKE DATA)
   const [stats, setStats] = useState({
-    trips: 0,
     users: 0,
-    wallet: 0,
     alerts: 0,
+    activeAlerts: 0,
+    wallet: 0,
   });
 
   const [adminName, setAdminName] = useState("");
@@ -40,7 +43,12 @@ export default function Dashboard() {
   const [adminPassword, setAdminPassword] = useState("");
   const [adminPhone, setAdminPhone] = useState("");
 
-  /* ROLE */
+  const [showPassword, setShowPassword] = useState(false);
+  const [adminCount, setAdminCount] = useState(0);
+
+  /* =========================
+     ROLE
+  ========================= */
   useEffect(() => {
     const savedRole = localStorage.getItem("role");
     if (savedRole === "superadmin" || savedRole === "admin") {
@@ -48,11 +56,13 @@ export default function Dashboard() {
     }
   }, []);
 
-  /* BACKEND STATUS */
+  /* =========================
+     BACKEND STATUS
+  ========================= */
   useEffect(() => {
-    const checkBackend = async () => {
+    const check = async () => {
       try {
-        const res = await fetch("http://127.0.0.1:8000/");
+        const res = await fetch(`${BASE_URL}/`);
         const data = await res.json();
         setStatus(data.message || "Online");
       } catch {
@@ -60,50 +70,93 @@ export default function Dashboard() {
       }
     };
 
-    checkBackend();
+    check();
   }, []);
 
-  /* REAL STATS FETCH (READY FOR BACKEND ENDPOINT) */
+  /* =========================
+     FETCH STATS (FIXED)
+  ========================= */
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/v1/stats");
+        setLoading(true);
 
-        if (!res.ok) return;
+        const res = await fetch(`${BASE_URL}/api/v1/emergency/stats`);
+
+        if (!res.ok) {
+          const err = await res.text();
+          console.log("STATS ERROR:", err);
+          return;
+        }
 
         const data = await res.json();
 
         setStats({
-          trips: data.trips || 0,
-          users: data.users || 0,
-          wallet: data.wallet || 0,
-          alerts: data.alerts || 0,
+          users: data.users ?? 0,
+          alerts: data.alerts ?? 0,
+          activeAlerts: data.activeAlerts ?? 0, // ✅ FIXED KEY
+          wallet: data.wallet ?? 0,
         });
-      } catch {
-        // silent fail (dashboard still works)
+      } catch (err) {
+        console.log("FETCH ERROR:", err);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchStats();
   }, []);
 
+  /* =========================
+     FETCH ADMIN COUNT
+  ========================= */
+  useEffect(() => {
+    const fetchAdmins = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/v1/admin/count`);
+        const data = await res.json();
+        setAdminCount(data.total_admins ?? 0);
+      } catch (err) {
+        console.log("ADMIN COUNT ERROR:", err);
+      }
+    };
+
+    fetchAdmins();
+  }, []);
+
+  /* =========================
+     LOGOUT
+  ========================= */
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     router.push("/");
   };
 
+  /* =========================
+     CREATE ADMIN
+  ========================= */
   const createAdmin = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/auth/register", {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        alert("Session expired. Please login again.");
+        router.push("/");
+        return;
+      }
+
+      const res = await fetch(`${BASE_URL}/api/v1/admin/`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           full_name: adminName,
           email: adminEmail,
           password: adminPassword,
           phone: adminPhone,
-          role: "admin",
         }),
       });
 
@@ -120,53 +173,56 @@ export default function Dashboard() {
       setAdminEmail("");
       setAdminPassword("");
       setAdminPhone("");
-    } catch {
+    } catch (error) {
+      console.log(error);
       alert("Server error");
     }
   };
 
+  /* =========================
+     UI THEME
+  ========================= */
   const theme = darkMode
-    ? "bg-[#0b0c10] text-white"
+    ? "bg-[#07090f] text-white"
     : "bg-[#f5f7fb] text-gray-900";
 
-  const sidebarTheme = darkMode
-    ? "bg-[#0f1117] border-zinc-800"
-    : "bg-white border-gray-200 shadow-md";
+  const sidebar = darkMode
+    ? "bg-[#0c0f17] border-zinc-800"
+    : "bg-white border-gray-200";
 
   return (
-    <div className={`${theme} min-h-screen flex transition-all`}>
+    <div className={`${theme} min-h-screen flex`}>
 
       {/* SIDEBAR */}
-      <aside className={`w-64 h-screen fixed border-r p-5 ${sidebarTheme}`}>
+      <aside className={`w-64 fixed h-screen p-5 border-r ${sidebar}`}>
 
-        <h1 className="text-sm font-bold flex items-center gap-2 mb-8">
-          <ShieldCheck size={16} />
-          TSC CONTROL
-        </h1>
+        <div className="flex items-center gap-2 mb-8">
+          <ShieldCheck size={18} />
+          <h1 className="font-bold">TSC CONTROL</h1>
+        </div>
 
         <nav className="space-y-2 text-sm">
+          <Nav icon={<LayoutDashboard size={16} />} label="Overview" color="text-blue-400" route="/dashboard" />
+          <Nav icon={<Map size={16} />} label="Tracking" color="text-green-400" route="/dashboard/tracking" />
+          <Nav icon={<ShieldAlert size={16} />} label="Emergency" color="text-red-400" route="/dashboard/emergency" />
+          <Nav icon={<Users size={16} />} label="Users" color="text-purple-400" route="/dashboard/users" />
 
-          <NavItem icon={<LayoutDashboard size={16} />} label="Overview" route="/dashboard" />
-          <NavItem icon={<Map size={16} />} label="Tracking" route="/dashboard/tracking" />
-          <NavItem icon={<ShieldAlert size={16} />} label="Emergency" route="/dashboard/emergency" />
-          <NavItem icon={<Users size={16} />} label="Users" route="/dashboard/users" />
-
-          <p className="text-xs text-gray-500 mt-4">Financial</p>
-          <NavItem icon={<Wallet size={16} />} label="Wallet" route="/dashboard/wallet" />
-          <NavItem icon={<CreditCard size={16} />} label="Payments" route="/dashboard/payments" />
+          <p className="text-xs text-gray-500 mt-4">Finance</p>
+          <Nav icon={<Wallet size={16} />} label="Wallet" color="text-yellow-400" route="/dashboard/wallet" />
+          <Nav icon={<CreditCard size={16} />} label="Payments" color="text-pink-400" route="/dashboard/payments" />
 
           <p className="text-xs text-gray-500 mt-4">System</p>
-          <NavItem icon={<BarChart3 size={16} />} label="Analytics" route="/dashboard/analytics" />
-          <NavItem icon={<History size={16} />} label="Logs" route="/dashboard/logs" />
+          <Nav icon={<BarChart3 size={16} />} label="Analytics" color="text-cyan-400" route="/dashboard/analytics" />
+          <Nav icon={<History size={16} />} label="Logs" color="text-orange-400" route="/dashboard/logs" />
 
           {role === "superadmin" && (
             <>
-              <NavItem icon={<Lock size={16} />} label="Admin" route="/dashboard/admin" />
-              <NavItem icon={<ServerCog size={16} />} label="Security" route="/dashboard/security" />
+              <Nav icon={<Lock size={16} />} label="Admin" color="text-red-500" route="/dashboard/admin" />
+              <Nav icon={<ServerCog size={16} />} label="Security" color="text-emerald-400" route="/dashboard/security" />
             </>
           )}
 
-          <NavItem icon={<Settings size={16} />} label="Settings" route="/dashboard/settings" />
+          <Nav icon={<Settings size={16} />} label="Settings" color="text-gray-400" route="/dashboard/settings" />
         </nav>
 
         {/* BOTTOM */}
@@ -174,58 +230,60 @@ export default function Dashboard() {
 
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="w-full text-xs flex items-center gap-2 p-2 rounded bg-zinc-800/30 hover:bg-zinc-700/40"
+            className="w-full flex items-center gap-2 p-2 rounded bg-zinc-800/30 hover:bg-zinc-700/40 text-xs"
           >
             {darkMode ? <Sun size={14} /> : <Moon size={14} />}
-            Toggle Theme
+            Theme
           </button>
 
           <button
             onClick={handleLogout}
-            className="w-full text-xs flex items-center gap-2 p-2 text-red-400 hover:bg-red-500/10 rounded"
+            className="w-full flex items-center gap-2 p-2 rounded text-red-400 hover:bg-red-500/10 text-xs"
           >
             <LogOut size={14} />
             Logout
           </button>
+
         </div>
       </aside>
 
       {/* MAIN */}
       <main className="ml-64 flex-1 p-6">
 
-        {/* HEADER */}
-        <div className="flex justify-between mb-6 border-b border-zinc-800 pb-3">
-          <h1 className="font-bold text-lg">
-            {role === "superadmin"
-              ? "System Core Engine"
-              : "Operational Dashboard"}
+        <div className="flex justify-between items-center mb-6 border-b border-zinc-800 pb-4">
+          <h1 className="text-lg font-semibold flex items-center gap-2">
+            <Activity size={18} />
+            {role === "superadmin" ? "System Core Engine" : "Operations Dashboard"}
           </h1>
 
-          <span className="text-green-500 text-xs">{status}</span>
+          <span className="text-xs text-green-400">{status}</span>
         </div>
 
-        {/* REAL STATS */}
+        {/* STATS */}
         <div className="grid md:grid-cols-4 gap-4 mb-8">
-
-          <Stat label="Trips" value={stats.trips} />
-          <Stat label="Users" value={stats.users} />
+          <Stat label="Users" value={loading ? "..." : stats.users} />
+          <Stat label="Alerts" value={loading ? "..." : stats.alerts} danger />
+          <Stat label="Active Emergencies" value={loading ? "..." : stats.activeAlerts} />
           <Stat label="Wallet" value={`₦${stats.wallet}`} />
-          <Stat label="Alerts" value={stats.alerts} danger />
-
         </div>
 
-        {/* ACTION CARDS */}
+        {/* CARDS */}
         <div className="grid md:grid-cols-3 gap-4">
-          <Action title="Tracking" desc="GPS system" />
-          <Action title="Emergency" desc="SOS system" />
-          <Action title="Payments" desc="Wallet engine" />
+          <Card title="Live Tracking" desc="GPS + Movement Engine" />
+          <Card title="Emergency System" desc="SOS + Response Network" />
+          <Card title="Payments" desc="Wallet + Transactions" />
         </div>
 
-        {/* ADMIN PANEL */}
+        {/* SUPER ADMIN */}
         {role === "superadmin" && (
-          <div className="mt-10 p-6 border border-red-500/30 rounded bg-red-500/5">
+          <div className="mt-10 p-6 border border-red-500/30 bg-red-500/5 rounded">
 
-            <h2 className="text-red-400 mb-4">Root Admin Control</h2>
+            <h2 className="text-red-400 mb-2">Super Admin Panel</h2>
+
+            <div className="mb-4 flex justify-between bg-zinc-800 p-3 rounded">
+              <span>Total Admins</span>
+              <span className="text-green-400 font-bold">{adminCount}</span>
+            </div>
 
             <div className="grid md:grid-cols-2 gap-3">
 
@@ -238,9 +296,23 @@ export default function Dashboard() {
               <input className="p-3 bg-zinc-900 rounded" placeholder="Phone"
                 value={adminPhone} onChange={(e) => setAdminPhone(e.target.value)} />
 
-              <input className="p-3 bg-zinc-900 rounded" placeholder="Password"
-                type="password"
-                value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} />
+              <div className="relative">
+                <input
+                  className="p-3 bg-zinc-900 rounded w-full pr-10"
+                  placeholder="Password"
+                  type={showPassword ? "text" : "password"}
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-gray-400"
+                >
+                  {showPassword ? "🙈" : "👁️"}
+                </button>
+              </div>
 
             </div>
 
@@ -250,6 +322,7 @@ export default function Dashboard() {
             >
               Create Admin
             </button>
+
           </div>
         )}
 
@@ -258,38 +331,32 @@ export default function Dashboard() {
   );
 }
 
-/* NAV */
-function NavItem({ icon, label, route }: any) {
+/* ================= NAV ================= */
+function Nav({ icon, label, route, color }: any) {
   const router = useRouter();
-
   return (
-    <div
-      onClick={() => router.push(route)}
-      className="flex items-center gap-2 p-2 rounded hover:bg-zinc-800 cursor-pointer"
-    >
+    <div onClick={() => router.push(route)} className={`flex items-center gap-2 p-2 rounded hover:bg-zinc-800 cursor-pointer ${color}`}>
       {icon}
       <span>{label}</span>
     </div>
   );
 }
 
-/* STAT */
+/* ================= STAT ================= */
 function Stat({ label, value, danger }: any) {
   return (
-    <div className="bg-zinc-900 p-4 rounded border border-zinc-800">
+    <div className="bg-zinc-900 border border-zinc-800 p-4 rounded">
       <p className="text-xs text-gray-400">{label}</p>
-      <h2 className={`text-lg font-bold ${danger ? "text-red-400" : ""}`}>
-        {value}
-      </h2>
+      <h2 className={`text-lg font-bold ${danger ? "text-red-400" : ""}`}>{value}</h2>
     </div>
   );
 }
 
-/* ACTION */
-function Action({ title, desc }: any) {
+/* ================= CARD ================= */
+function Card({ title, desc }: any) {
   return (
-    <div className="bg-zinc-900 p-4 rounded border border-zinc-800 hover:border-zinc-700 transition">
-      <h3 className="font-bold">{title}</h3>
+    <div className="bg-zinc-900 border border-zinc-800 p-4 rounded">
+      <h3 className="font-semibold">{title}</h3>
       <p className="text-xs text-gray-400">{desc}</p>
     </div>
   );

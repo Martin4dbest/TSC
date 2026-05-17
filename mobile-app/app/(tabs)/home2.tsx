@@ -19,7 +19,6 @@ import {
 } from "@expo/vector-icons";
 
 import * as ImagePicker from "expo-image-picker";
-import * as Location from "expo-location"; // ✅ ADDED
 
 import API from "../../services/api";
 
@@ -207,36 +206,13 @@ export default function HomeDashboard() {
   };
 
   /* ======================================
-     🚨 REAL GPS FIXED HERE
-  ====================================== */
-
-  const getLocation = async () => {
-    const { status } =
-      await Location.requestForegroundPermissionsAsync();
-
-    if (status !== "granted") {
-      Alert.alert(
-        "Permission Required",
-        "Location access is required for SOS."
-      );
-
-      throw new Error("Location permission denied");
-    }
-
-    const location =
-      await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-    return {
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-    };
-  };
-
-  /* ======================================
      SOS
   ====================================== */
+
+  const getLocation = async () => ({
+    latitude: 6.5244,
+    longitude: 3.3792,
+  });
 
   const sendSOS = async () => {
     try {
@@ -250,7 +226,7 @@ export default function HomeDashboard() {
         );
 
       const location =
-        await getLocation(); // ✅ REAL GPS NOW
+        await getLocation();
 
       await API.post(
         "/emergency/sos",
@@ -334,7 +310,9 @@ export default function HomeDashboard() {
                 setCountdown(count);
 
                 if (count <= 0) {
-                  clearInterval(interval);
+                  clearInterval(
+                    interval
+                  );
 
                   sendSOS();
                 }
@@ -401,28 +379,54 @@ export default function HomeDashboard() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar
+        barStyle="light-content"
+      />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-
+      <ScrollView
+        showsVerticalScrollIndicator={
+          false
+        }
+        contentContainerStyle={
+          styles.scroll
+        }
+      >
         {/* HEADER */}
-        <View style={styles.header}>
-          <Ionicons name="menu" size={28} color="#fff" />
 
-          <Text style={styles.logo}>TSC</Text>
+        <View style={styles.header}>
+          <Ionicons
+            name="menu"
+            size={28}
+            color="#fff"
+          />
+
+          <Text style={styles.logo}>
+            TSC
+          </Text>
 
           <View style={styles.bellWrapper}>
-            <Ionicons name="notifications-outline" size={26} color="#fff" />
+            <Ionicons
+              name="notifications-outline"
+              size={26}
+              color="#fff"
+            />
 
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>3</Text>
+              <Text
+                style={styles.badgeText}
+              >
+                3
+              </Text>
             </View>
           </View>
         </View>
 
         {/* USER */}
+
         <View style={styles.userRow}>
-          <TouchableOpacity onPress={pickImage}>
+          <TouchableOpacity
+            onPress={pickImage}
+          >
             <Image
               source={{
                 uri:
@@ -434,96 +438,248 @@ export default function HomeDashboard() {
           </TouchableOpacity>
 
           <View>
-            <Text style={styles.greeting}>
+            <Text
+              style={styles.greeting}
+            >
               Hello{" "}
-              <Text style={{ color: "#00e5a8" }}>
-                {user?.full_name || "User"} 👋
+              <Text
+                style={{
+                  color: "#00e5a8",
+                }}
+              >
+                {user?.full_name ||
+                  "User"}{" "}
+                👋
               </Text>
             </Text>
 
-            <Text style={styles.subText}>
+            <Text
+              style={styles.subText}
+            >
               Tap photo to change
             </Text>
           </View>
 
           <View style={styles.timeBox}>
-            <Text style={styles.dateText}>
+            <Text
+              style={styles.dateText}
+            >
               {now.toDateString()}
             </Text>
 
-            <Text style={styles.timeText}>
+            <Text
+              style={styles.timeText}
+            >
               {now.toLocaleTimeString()}
             </Text>
           </View>
         </View>
 
         {/* SAFETY */}
+
         <View style={styles.safetyCard}>
-          <View style={styles.shieldCircle}>
-            <Ionicons name="shield-checkmark" size={30} color="#00e5a8" />
+          <View
+            style={styles.shieldCircle}
+          >
+            <Ionicons
+              name="shield-checkmark"
+              size={30}
+              color="#00e5a8"
+            />
           </View>
 
           <View style={{ flex: 1 }}>
-            <Text style={styles.cardTitle}>Safety Status</Text>
+            <Text
+              style={styles.cardTitle}
+            >
+              Safety Status
+            </Text>
 
-            <Text style={[styles.safeText, { color: getStatusColor() }]}>
+            <Text
+              style={[
+                styles.safeText,
+                {
+                  color:
+                    getStatusColor(),
+                },
+              ]}
+            >
               {getSafetyText()}
             </Text>
 
-            <Text style={styles.cardSub}>
-              Real-time monitoring active
+            <Text
+              style={styles.cardSub}
+            >
+              Real-time monitoring
+              active
             </Text>
 
             {countdown !== null && (
-              <Text style={styles.countdown}>
+              <Text
+                style={
+                  styles.countdown
+                }
+              >
                 SOS in {countdown}
               </Text>
             )}
           </View>
+
+          <View style={styles.liveTag}>
+            <View
+              style={styles.greenDot}
+            />
+
+            <Text
+              style={styles.liveText}
+            >
+              Live
+            </Text>
+          </View>
         </View>
 
         {/* QUICK ACTIONS */}
+
         <View style={styles.quickRow}>
-          <Action icon="map-marker" label="Tracking" color="#00e5a8" onPress={goToTracking} />
-          <Action icon="wallet" label="Wallet" color="#3b82f6" />
-          <Action icon="shield-check" label="Insurance" color="#a855f7" />
-          <Action icon="alarm-light" label="Emergency" color="#ef4444" onPress={handleSOS} />
+          {/* TRACKING */}
+
+          <Action
+            icon="map-marker"
+            label="Tracking"
+            color="#00e5a8"
+            onPress={goToTracking}
+          />
+
+          {/* WALLET */}
+
+          <Action
+            icon="wallet"
+            label="Wallet"
+            color="#3b82f6"
+          />
+
+          {/* INSURANCE */}
+
+          <Action
+            icon="shield-check"
+            label="Insurance"
+            color="#a855f7"
+          />
+
+          {/* SOS */}
+
+          <Action
+            icon="alarm-light"
+            label="Emergency"
+            color="#ef4444"
+            onPress={handleSOS}
+          />
         </View>
 
-        {/* SOS */}
-        <TouchableOpacity style={styles.sosCard} onPress={handleSOS}>
+        {/* SOS CARD */}
+
+        <TouchableOpacity
+          style={styles.sosCard}
+          onPress={handleSOS}
+        >
           <View style={styles.sosButton}>
-            <Text style={styles.sosText}>SOS</Text>
+            <Text style={styles.sosText}>
+              SOS
+            </Text>
           </View>
 
-          <View style={{ flex: 1, marginLeft: 15 }}>
-            <Text style={styles.cardTitle}>Need Help?</Text>
-            <Text style={styles.cardSub}>Tap to send emergency alert</Text>
+          <View
+            style={{
+              flex: 1,
+              marginLeft: 15,
+            }}
+          >
+            <Text
+              style={styles.cardTitle}
+            >
+              Need Help?
+            </Text>
+
+            <Text
+              style={styles.cardSub}
+            >
+              Tap to send emergency
+              alert
+            </Text>
           </View>
 
-          <Ionicons name="chevron-forward" size={22} color="#fff" />
+          <Ionicons
+            name="chevron-forward"
+            size={22}
+            color="#fff"
+          />
         </TouchableOpacity>
 
         {/* ACTIVITY */}
-        <Text style={styles.sectionTitle}>Recent Tracking Activity</Text>
+
+        <Text style={styles.sectionTitle}>
+          Recent Tracking Activity
+        </Text>
 
         <View style={styles.activityBox}>
-          {activities.length === 0 ? (
-            <Text style={styles.noActivity}>No recent tracking yet</Text>
+          {activities.length ===
+          0 ? (
+            <Text
+              style={styles.noActivity}
+            >
+              No recent tracking yet
+            </Text>
           ) : (
-            activities.map((item, i) => (
-              <View key={i} style={styles.activityRow}>
-                <View style={[styles.dot, { backgroundColor: item.color }]} />
-                <Text style={styles.activityText}>{item.text}</Text>
-                <Text style={styles.activityTime}>{item.time}</Text>
-              </View>
-            ))
+            activities.map(
+              (item, i) => (
+                <View
+                  key={i}
+                  style={
+                    styles.activityRow
+                  }
+                >
+                  <View
+                    style={[
+                      styles.dot,
+                      {
+                        backgroundColor:
+                          item.color,
+                      },
+                    ]}
+                  />
+
+                  <Text
+                    style={
+                      styles.activityText
+                    }
+                  >
+                    {item.text}
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.activityTime
+                    }
+                  >
+                    {item.time}
+                  </Text>
+                </View>
+              )
+            )
           )}
         </View>
 
         {/* LOGOUT */}
-        <TouchableOpacity style={styles.logout} onPress={logout}>
-          <Text style={styles.logoutText}>Logout</Text>
+
+        <TouchableOpacity
+          style={styles.logout}
+          onPress={logout}
+        >
+          <Text
+            style={styles.logoutText}
+          >
+            Logout
+          </Text>
         </TouchableOpacity>
 
         <View style={{ height: 50 }} />
@@ -532,22 +688,57 @@ export default function HomeDashboard() {
   );
 }
 
-/* ACTION COMPONENT */
-function Action({ icon, label, color, onPress }: any) {
+/* ======================================
+   ACTION
+====================================== */
+
+function Action({
+  icon,
+  label,
+  color,
+  onPress,
+}: any) {
   return (
-    <TouchableOpacity style={styles.actionBox} onPress={onPress}>
-      <View style={[styles.actionIcon, { backgroundColor: color + "20" }]}>
-        <MaterialCommunityIcons name={icon} size={24} color={color} />
+    <TouchableOpacity
+      style={styles.actionBox}
+      onPress={onPress}
+    >
+      <View
+        style={[
+          styles.actionIcon,
+          {
+            backgroundColor:
+              color + "20",
+          },
+        ]}
+      >
+        <MaterialCommunityIcons
+          name={icon}
+          size={24}
+          color={color}
+        />
       </View>
-      <Text style={styles.actionText}>{label}</Text>
+
+      <Text style={styles.actionText}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
 
-/* STYLES (UNCHANGED) */
+/* ======================================
+   STYLES
+====================================== */
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0b1220" },
-  scroll: { paddingBottom: 40 },
+  container: {
+    flex: 1,
+    backgroundColor: "#0b1220",
+  },
+
+  scroll: {
+    paddingBottom: 40,
+  },
 
   header: {
     flexDirection: "row",
@@ -556,9 +747,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  logo: { color: "#00e5a8", fontSize: 20, fontWeight: "bold" },
+  logo: {
+    color: "#00e5a8",
+    fontSize: 20,
+    fontWeight: "bold",
+  },
 
-  bellWrapper: { position: "relative" },
+  bellWrapper: {
+    position: "relative",
+  },
 
   badge: {
     position: "absolute",
@@ -572,7 +769,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  badgeText: { color: "#fff", fontSize: 10 },
+  badgeText: {
+    color: "#fff",
+    fontSize: 10,
+  },
 
   userRow: {
     flexDirection: "row",
@@ -581,17 +781,39 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
 
-  avatar: { width: 55, height: 55, borderRadius: 30 },
+  avatar: {
+    width: 55,
+    height: 55,
+    borderRadius: 30,
+  },
 
-  greeting: { color: "#fff", fontSize: 18, fontWeight: "600", marginLeft: 10 },
+  greeting: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+    marginLeft: 10,
+  },
 
-  subText: { color: "#9ca3af", marginLeft: 10 },
+  subText: {
+    color: "#9ca3af",
+    marginLeft: 10,
+  },
 
-  timeBox: { marginLeft: "auto", alignItems: "flex-end" },
+  timeBox: {
+    marginLeft: "auto",
+    alignItems: "flex-end",
+  },
 
-  dateText: { color: "#9ca3af", fontSize: 12 },
+  dateText: {
+    color: "#9ca3af",
+    fontSize: 12,
+  },
 
-  timeText: { color: "#00e5a8", fontSize: 15, fontWeight: "bold" },
+  timeText: {
+    color: "#00e5a8",
+    fontSize: 15,
+    fontWeight: "bold",
+  },
 
   safetyCard: {
     flexDirection: "row",
@@ -612,13 +834,44 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
 
-  cardTitle: { color: "#9ca3af" },
+  cardTitle: {
+    color: "#9ca3af",
+  },
 
-  safeText: { fontSize: 16, fontWeight: "bold" },
+  safeText: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
 
-  cardSub: { color: "#9ca3af", fontSize: 12 },
+  cardSub: {
+    color: "#9ca3af",
+    fontSize: 12,
+  },
 
-  countdown: { color: "#f59e0b", marginTop: 4 },
+  countdown: {
+    color: "#f59e0b",
+    marginTop: 4,
+  },
+
+  liveTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1f2937",
+    padding: 6,
+    borderRadius: 10,
+  },
+
+  greenDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#00e5a8",
+    marginRight: 5,
+  },
+
+  liveText: {
+    color: "#00e5a8",
+  },
 
   quickRow: {
     flexDirection: "row",
@@ -627,7 +880,10 @@ const styles = StyleSheet.create({
     marginVertical: 15,
   },
 
-  actionBox: { alignItems: "center", width: "23%" },
+  actionBox: {
+    alignItems: "center",
+    width: "23%",
+  },
 
   actionIcon: {
     width: 60,
@@ -637,7 +893,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  actionText: { color: "#fff", marginTop: 6, fontSize: 12 },
+  actionText: {
+    color: "#fff",
+    marginTop: 6,
+    fontSize: 12,
+  },
 
   sosCard: {
     flexDirection: "row",
@@ -657,7 +917,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  sosText: { color: "#fff", fontWeight: "bold" },
+  sosText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
 
   sectionTitle: {
     color: "#fff",
@@ -680,13 +943,27 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  dot: { width: 8, height: 8, borderRadius: 4, marginRight: 10 },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 10,
+  },
 
-  activityText: { color: "#fff", flex: 1 },
+  activityText: {
+    color: "#fff",
+    flex: 1,
+  },
 
-  activityTime: { color: "#9ca3af", fontSize: 12 },
+  activityTime: {
+    color: "#9ca3af",
+    fontSize: 12,
+  },
 
-  noActivity: { color: "#9ca3af", textAlign: "center" },
+  noActivity: {
+    color: "#9ca3af",
+    textAlign: "center",
+  },
 
   logout: {
     marginHorizontal: 20,
@@ -696,5 +973,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
 
-  logoutText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
+  logoutText: {
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "bold",
+  },
 });

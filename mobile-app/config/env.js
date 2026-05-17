@@ -1,11 +1,11 @@
 import { Platform } from "react-native";
 
-const LOCAL_IP = "10.213.38.196";
+const LOCAL_IP = "10.66.220.196";
 
 const DEV_API =
   Platform.OS === "android"
     ? `http://${LOCAL_IP}:8000/api/v1`
-    : "http://localhost:8000/api/v1";
+    : `http://${LOCAL_IP}:8000/api/v1`;
 
 const PROD_API = "https://your-production-domain.com/api/v1";
 
