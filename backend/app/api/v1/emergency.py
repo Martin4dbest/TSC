@@ -326,7 +326,9 @@ def clear_all_emergencies(
 def get_stats(db: Session = Depends(get_db)):
 
     return {
-        "users": db.query(User).count(),
+        "users": db.query(User).filter(
+            User.role == UserRole.USER
+        ).count(),
         "alerts": db.query(EmergencyAlert).count(),
         "activeAlerts": db.query(
             EmergencyAlert

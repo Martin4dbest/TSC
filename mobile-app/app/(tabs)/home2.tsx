@@ -8,6 +8,7 @@ import {
   ScrollView,
   StatusBar,
   Alert,
+  Dimensions,
 } from "react-native";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -19,18 +20,18 @@ import {
 } from "@expo/vector-icons";
 
 import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
+import * as Battery from "expo-battery";
 
 import API from "../../services/api";
+
+const { width } = Dimensions.get("window");
 
 export default function HomeDashboard() {
   const router = useRouter();
 
   const [user, setUser] = useState<any>(null);
-
   const [avatar, setAvatar] = useState<string | null>(null);
-
-  const [activities, setActivities] = useState<any[]>([]);
-
   const [now, setNow] = useState(new Date());
 
   const [status, setStatus] = useState<
@@ -38,39 +39,71 @@ export default function HomeDashboard() {
   >("idle");
 
   const [sendingSOS, setSendingSOS] = useState(false);
-
-  const [countdown, setCountdown] =
-    useState<number | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  
+  const [isTrackingActive, setIsTrackingActive] = useState(false);
+  const [batteryLevel, setBatteryLevel] = useState("---%");
+  const [signalStatus, setSignalStatus] = useState("Excellent");
 
   /* ======================================
-     LOAD USER
+     LOAD USER & SYSTEM STATUS (USER SCOPED)
   ====================================== */
-
   useEffect(() => {
-    const loadUser = async () => {
-      const u =
-        await AsyncStorage.getItem("user");
-
-      const savedAvatar =
-        await AsyncStorage.getItem(
-          "avatar"
-        );
-
-      if (u) setUser(JSON.parse(u));
-
-      if (savedAvatar)
-        setAvatar(savedAvatar);
-
-      fetchRecentTracking();
+    const loadDashboardData = async () => {
+      const u = await AsyncStorage.getItem("user");
+      
+      if (u) {
+        const parsedUser = JSON.parse(u);
+        setUser(parsedUser);
+        
+        // 🔑 FIXED: Load avatar using the user's unique ID key string
+        const savedAvatar = await AsyncStorage.getItem(`avatar_${parsedUser.id}`);
+        if (savedAvatar) {
+          setAvatar(savedAvatar);
+        } else {
+          setAvatar(null); // Clear or fallback to default if no profile photo exists
+        }
+      }
+      
+      const checkTracking = Math.random() > 0.5;
+      setIsTrackingActive(checkTracking);
     };
 
-    loadUser();
+    loadDashboardData();
+  }, []);
+
+  /* ======================================
+     🔋 REAL BATTERY MONITORING
+  ====================================== */
+  useEffect(() => {
+    let batterySubscription: Battery.Subscription | null = null;
+
+    const setupBatteryLevel = async () => {
+      try {
+        const level = await Battery.getBatteryLevelAsync();
+        setBatteryLevel(Math.round(level * 100) + "%");
+
+        batterySubscription = Battery.addBatteryLevelListener(({ batteryLevel }) => {
+          setBatteryLevel(Math.round(batteryLevel * 100) + "%");
+        });
+      } catch (error) {
+        console.log("Telemetry Error", error);
+        setBatteryLevel("ERR");
+      }
+    };
+
+    setupBatteryLevel();
+
+    return () => {
+      if (batterySubscription) {
+        batterySubscription.remove();
+      }
+    };
   }, []);
 
   /* ======================================
      CLOCK
   ====================================== */
-
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(new Date());
@@ -80,902 +113,504 @@ export default function HomeDashboard() {
   }, []);
 
   /* ======================================
-     FETCH TRACKING
-  ====================================== */
-
-  const fetchRecentTracking =
-    async () => {
-      try {
-        const token =
-          await AsyncStorage.getItem(
-            "token"
-          );
-
-        const res = await API.get(
-          "/tracking/recent",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const formatted = res.data.map(
-          (item: any) => ({
-            text: `Trip Activity`,
-            time: new Date(
-              item.created_at
-            ).toLocaleTimeString(),
-
-            color: "#00e5a8",
-          })
-        );
-
-        setActivities(formatted);
-      } catch (err) {
-        console.log(err);
-      }
-    };
-
-  /* ======================================
      LOGOUT
   ====================================== */
-
   const logout = async () => {
+    // Note: standard clear deletes everything. If you prefer keeping local image caches,
+    // clear token and user keys selectively instead of .clear()
     await AsyncStorage.clear();
-
     router.replace("/(auth)/login");
   };
 
   /* ======================================
-     PICK IMAGE
+     PICK IMAGE (USER SCOPED SAVE)
   ====================================== */
-
   const pickImage = async () => {
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert(
-        "Permission Required",
-        "Please allow gallery access."
-      );
-
+    if (!user?.id) {
+      Alert.alert("Error", "User session profile not established.");
       return;
     }
 
-    const result =
-      await ImagePicker.launchImageLibraryAsync(
-        {
-          mediaTypes:
-            ImagePicker.MediaTypeOptions
-              .Images,
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-          allowsEditing: true,
+    if (!permission.granted) {
+      Alert.alert("Permission Required", "Please allow gallery access.");
+      return;
+    }
 
-          aspect: [1, 1],
-
-          quality: 0.8,
-        }
-      );
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
 
     if (!result.canceled) {
-      const imageUri =
-        result.assets[0].uri;
-
+      const imageUri = result.assets[0].uri;
       setAvatar(imageUri);
-
-      await AsyncStorage.setItem(
-        "avatar",
-        imageUri
-      );
+      
+      // 🔑 FIXED: Save avatar targeting a user specific key string matching their unique database entry
+      await AsyncStorage.setItem(`avatar_${user.id}`, imageUri);
 
       try {
-        const token =
-          await AsyncStorage.getItem(
-            "token"
-          );
-
+        const token = await AsyncStorage.getItem("token");
         const formData = new FormData();
 
         formData.append("file", {
           uri: imageUri,
-          name: "avatar.jpg",
+          name: `avatar_${user.id}.jpg`,
           type: "image/jpeg",
         } as any);
 
-        await API.post(
-          "/user/upload-avatar",
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-
-              "Content-Type":
-                "multipart/form-data",
-            },
-          }
-        );
+        await API.post("/user/upload-avatar", formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        });
       } catch (err) {
-        console.log(
-          "Upload Failed",
-          err
-        );
+        console.log("Upload Failed", err);
       }
     }
+  };
+
+  /* ======================================
+     🚨 GPS ACCESSOR
+  ====================================== */
+  const getLocation = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+
+    if (status !== "granted") {
+      Alert.alert("Permission Required", "Location access is required for SOS.");
+      throw new Error("Location permission denied");
+    }
+
+    const location = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+
+    return {
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+    };
   };
 
   /* ======================================
      SOS
   ====================================== */
-
-  const getLocation = async () => ({
-    latitude: 6.5244,
-    longitude: 3.3792,
-  });
-
   const sendSOS = async () => {
     try {
       setSendingSOS(true);
-
       setStatus("sending");
 
-      const token =
-        await AsyncStorage.getItem(
-          "token"
-        );
-
-      const location =
-        await getLocation();
+      const token = await AsyncStorage.getItem("token");
+      const location = await getLocation();
 
       await API.post(
         "/emergency/sos",
         {
           user_id: user?.id,
-
-          full_name:
-            user?.full_name,
-
-          latitude:
-            location.latitude,
-
-          longitude:
-            location.longitude,
-
-          message:
-            "EMERGENCY ALERT 🚨",
+          full_name: user?.full_name,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          message: "EMERGENCY ALERT 🚨",
         },
-
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setStatus("sent");
+      Alert.alert("SOS SENT", "Emergency team notified.");
 
-      Alert.alert(
-        "SOS SENT",
-        "Emergency team notified."
-      );
-
-      setTimeout(() => {
-        setStatus("idle");
-      }, 3000);
-
-      fetchRecentTracking();
+      setTimeout(() => { setStatus("idle"); }, 3000);
     } catch (err) {
       console.log(err);
-
       setStatus("failed");
-
-      Alert.alert(
-        "FAILED",
-        "Unable to send SOS."
-      );
+      Alert.alert("FAILED", "Unable to send SOS.");
     } finally {
       setSendingSOS(false);
-
       setCountdown(null);
     }
   };
 
   const handleSOS = () => {
-    Alert.alert(
-      "Emergency SOS",
-      "Send emergency alert?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+    Alert.alert("Emergency SOS", "Send emergency alert?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Send",
+        style: "destructive",
+        onPress: () => {
+          setStatus("preparing");
+          let count = 3;
+          setCountdown(count);
 
-        {
-          text: "Send",
-
-          style: "destructive",
-
-          onPress: () => {
-            setStatus("preparing");
-
-            let count = 3;
-
+          const interval = setInterval(() => {
+            count -= 1;
             setCountdown(count);
 
-            const interval =
-              setInterval(() => {
-                count -= 1;
-
-                setCountdown(count);
-
-                if (count <= 0) {
-                  clearInterval(
-                    interval
-                  );
-
-                  sendSOS();
-                }
-              }, 1000);
-          },
+            if (count <= 0) {
+              clearInterval(interval);
+              sendSOS();
+            }
+          }, 1000);
         },
-      ]
-    );
+      },
+    ]);
   };
-
-  /* ======================================
-     STATUS
-  ====================================== */
 
   const getSafetyText = () => {
     switch (status) {
-      case "sending":
-        return "SENDING ALERT";
-
-      case "sent":
-        return "ALERT SENT";
-
-      case "failed":
-        return "SYSTEM ERROR";
-
-      case "preparing":
-        return "PREPARING SOS";
-
-      default:
-        return "YOU ARE SAFE";
+      case "sending": return "SENDING ALERT";
+      case "sent": return "ALERT SENT";
+      case "failed": return "SYSTEM ERROR";
+      case "preparing": return "PREPARING SOS";
+      default: return "SYSTEM SECURE";
     }
   };
 
   const getStatusColor = () => {
     switch (status) {
-      case "sending":
-        return "#ef4444";
-
-      case "sent":
-        return "#00e5a8";
-
-      case "failed":
-        return "#f97316";
-
-      case "preparing":
-        return "#f59e0b";
-
-      default:
-        return "#00e5a8";
+      case "sending": return "#ef4444";
+      case "sent": return "#00e5a8";
+      case "failed": return "#f97316";
+      case "preparing": return "#f59e0b";
+      default: return "#00e5a8";
     }
   };
 
-  /* ======================================
-     NAVIGATION
-  ====================================== */
-
-  const goToTracking = () => {
-    router.push("/tracking");
-  };
-
-  /* ======================================
-     UI
-  ====================================== */
+  const goToTracking = () => { router.push("/tracking"); };
 
   return (
     <View style={styles.container}>
-      <StatusBar
-        barStyle="light-content"
-      />
+      <StatusBar barStyle="light-content" />
 
-      <ScrollView
-        showsVerticalScrollIndicator={
-          false
-        }
-        contentContainerStyle={
-          styles.scroll
-        }
-      >
+      {isTrackingActive && (
+        <TouchableOpacity style={styles.activeBanner} onPress={goToTracking}>
+          <MaterialCommunityIcons name="radar" size={14} color="#0b1220" />
+          <Text style={styles.activeBannerText}> Live dynamic routing active</Text>
+          <Ionicons name="arrow-forward" size={12} color="#0b1220" style={{ marginLeft: "auto" }} />
+        </TouchableOpacity>
+      )}
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
         {/* HEADER */}
-
         <View style={styles.header}>
-          <Ionicons
-            name="menu"
-            size={28}
-            color="#fff"
-          />
-
-          <Text style={styles.logo}>
-            TSC
-          </Text>
+          <TouchableOpacity style={styles.iconCircle}>
+            <Ionicons name="menu" size={20} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.logo}>TSC🛡️</Text>
 
           <View style={styles.bellWrapper}>
-            <Ionicons
-              name="notifications-outline"
-              size={26}
-              color="#fff"
-            />
-
+            <TouchableOpacity style={styles.iconCircle}>
+              <Ionicons name="notifications-outline" size={20} color="#fff" />
+            </TouchableOpacity>
             <View style={styles.badge}>
-              <Text
-                style={styles.badgeText}
-              >
-                3
-              </Text>
+              <Text style={styles.badgeText}>3</Text>
             </View>
           </View>
         </View>
 
-        {/* USER */}
-
+        {/* PROFILE BAR */}
         <View style={styles.userRow}>
-          <TouchableOpacity
-            onPress={pickImage}
-          >
+          <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
             <Image
-              source={{
-                uri:
-                  avatar ||
-                  "https://randomuser.me/api/portraits/men/32.jpg",
-              }}
+              source={{ uri: avatar || "https://randomuser.me/api/portraits/men/32.jpg" }}
               style={styles.avatar}
             />
+            <View style={styles.editBadge}>
+              <Ionicons name="camera" size={9} color="#fff" />
+            </View>
           </TouchableOpacity>
 
-          <View>
-            <Text
-              style={styles.greeting}
-            >
-              Hello{" "}
-              <Text
-                style={{
-                  color: "#00e5a8",
-                }}
-              >
-                {user?.full_name ||
-                  "User"}{" "}
-                👋
-              </Text>
-            </Text>
-
-            <Text
-              style={styles.subText}
-            >
-              Tap photo to change
+          <View style={{ marginLeft: 10 }}>
+            <Text style={styles.greeting}>
+              Welcome, <Text style={{ color: "#00e5a8", fontWeight: "700" }}>{user?.full_name || "User File"}</Text>
             </Text>
           </View>
 
           <View style={styles.timeBox}>
-            <Text
-              style={styles.dateText}
-            >
-              {now.toDateString()}
+            <Text style={styles.timeText}>
+              {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
-
-            <Text
-              style={styles.timeText}
-            >
-              {now.toLocaleTimeString()}
+            <Text style={styles.dateText}>
+              {now.toLocaleDateString([], { month: 'short', day: 'numeric' })}
             </Text>
           </View>
         </View>
 
-        {/* SAFETY */}
-
-        <View style={styles.safetyCard}>
-          <View
-            style={styles.shieldCircle}
-          >
-            <Ionicons
-              name="shield-checkmark"
-              size={30}
-              color="#00e5a8"
-            />
+        {/* MONITOR MATRIX STATUS */}
+        <View style={[styles.safetyCard, { borderColor: getStatusColor() + "30" }]}>
+          <View style={[styles.shieldCircle, { backgroundColor: getStatusColor() + "10" }]}>
+            <Ionicons name="shield-checkmark" size={22} color={getStatusColor()} />
           </View>
 
           <View style={{ flex: 1 }}>
-            <Text
-              style={styles.cardTitle}
-            >
-              Safety Status
-            </Text>
-
-            <Text
-              style={[
-                styles.safeText,
-                {
-                  color:
-                    getStatusColor(),
-                },
-              ]}
-            >
-              {getSafetyText()}
-            </Text>
-
-            <Text
-              style={styles.cardSub}
-            >
-              Real-time monitoring
-              active
-            </Text>
+            <Text style={styles.cardTitle}>Status Core</Text>
+            <Text style={[styles.safeText, { color: getStatusColor() }]}>{getSafetyText()}</Text>
+            <Text style={styles.cardSub}>Satellite terminal operational</Text>
 
             {countdown !== null && (
-              <Text
-                style={
-                  styles.countdown
-                }
-              >
-                SOS in {countdown}
-              </Text>
+              <View style={styles.countdownContainer}>
+                <Text style={styles.countdown}>Emergency Response: {countdown}s</Text>
+              </View>
             )}
           </View>
+        </View>
 
-          <View style={styles.liveTag}>
-            <View
-              style={styles.greenDot}
-            />
-
-            <Text
-              style={styles.liveText}
-            >
-              Live
-            </Text>
+        {/* METRICS */}
+        <View style={styles.telemetryCard}>
+          <View style={styles.telemetryItem}>
+            <MaterialCommunityIcons name="battery-high" size={16} color="#00e5a8" />
+            <Text style={styles.telemetryLabel}>Battery</Text>
+            <Text style={styles.telemetryValue}>{batteryLevel}</Text>
+          </View>
+          <View style={styles.telemetryDivider} />
+          <View style={styles.telemetryItem}>
+            <MaterialCommunityIcons name="signal-cellular-outline" size={16} color="#3b82f6" />
+            <Text style={styles.telemetryLabel}>GPS Node</Text>
+            <Text style={styles.telemetryValue}>{signalStatus}</Text>
           </View>
         </View>
 
-        {/* QUICK ACTIONS */}
-
-        <View style={styles.quickRow}>
-          {/* TRACKING */}
-
-          <Action
-            icon="map-marker"
-            label="Tracking"
-            color="#00e5a8"
-            onPress={goToTracking}
-          />
-
-          {/* WALLET */}
-
-          <Action
-            icon="wallet"
-            label="Wallet"
-            color="#3b82f6"
-          />
-
-          {/* INSURANCE */}
-
-          <Action
-            icon="shield-check"
-            label="Insurance"
-            color="#a855f7"
-          />
-
-          {/* SOS */}
-
-          <Action
-            icon="alarm-light"
-            label="Emergency"
-            color="#ef4444"
-            onPress={handleSOS}
-          />
+        {/* ACTIONS */}
+        <Text style={styles.sectionTitle}>Operations</Text>
+        <View style={styles.quickGrid}>
+          <ModernAction icon="map-marker-radius" label="Live Tracking" color="#00e5a8" onPress={goToTracking} />
+          <ModernAction icon="wallet-outline" label="Secure Wallet" color="#3b82f6" />
+          <ModernAction icon="shield-car" label="Insurance" color="#a855f7" />
+          <ModernAction icon="alert-octagon" label="Force Distress" color="#ef4444" onPress={handleSOS} />
         </View>
 
-        {/* SOS CARD */}
-
-        <TouchableOpacity
-          style={styles.sosCard}
-          onPress={handleSOS}
-        >
+        {/* CRITICAL SOS */}
+        <TouchableOpacity style={styles.sosCard} onPress={handleSOS} activeOpacity={0.9}>
           <View style={styles.sosButton}>
-            <Text style={styles.sosText}>
-              SOS
-            </Text>
+            <MaterialCommunityIcons name="alarm-light" size={22} color="#fff" />
           </View>
-
-          <View
-            style={{
-              flex: 1,
-              marginLeft: 15,
-            }}
-          >
-            <Text
-              style={styles.cardTitle}
-            >
-              Need Help?
-            </Text>
-
-            <Text
-              style={styles.cardSub}
-            >
-              Tap to send emergency
-              alert
-            </Text>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.sosCardTitle}>CRITICAL EMERGENCY DISTRESS</Text>
+            <Text style={styles.sosCardSub}>Broadcast tactical array to grid responders</Text>
           </View>
-
-          <Ionicons
-            name="chevron-forward"
-            size={22}
-            color="#fff"
-          />
+          <View style={styles.chevronCircle}>
+            <Ionicons name="chevron-forward" size={14} color="#fff" />
+          </View>
         </TouchableOpacity>
 
-        {/* ACTIVITY */}
-
-        <Text style={styles.sectionTitle}>
-          Recent Tracking Activity
-        </Text>
-
-        <View style={styles.activityBox}>
-          {activities.length ===
-          0 ? (
-            <Text
-              style={styles.noActivity}
-            >
-              No recent tracking yet
-            </Text>
-          ) : (
-            activities.map(
-              (item, i) => (
-                <View
-                  key={i}
-                  style={
-                    styles.activityRow
-                  }
-                >
-                  <View
-                    style={[
-                      styles.dot,
-                      {
-                        backgroundColor:
-                          item.color,
-                      },
-                    ]}
-                  />
-
-                  <Text
-                    style={
-                      styles.activityText
-                    }
-                  >
-                    {item.text}
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.activityTime
-                    }
-                  >
-                    {item.time}
-                  </Text>
-                </View>
-              )
-            )
-          )}
-        </View>
-
-        {/* LOGOUT */}
-
-        <TouchableOpacity
-          style={styles.logout}
-          onPress={logout}
-        >
-          <Text
-            style={styles.logoutText}
-          >
-            Logout
-          </Text>
+        {/* SHUTDOWN */}
+        <TouchableOpacity style={styles.logout} onPress={logout} activeOpacity={0.8}>
+          <MaterialCommunityIcons name="logout" size={14} color="#64748b" style={{ marginRight: 6 }} />
+          <Text style={styles.logoutText}>Terminate Session</Text>
         </TouchableOpacity>
 
-        <View style={{ height: 50 }} />
+        <View style={{ height: 30 }} />
       </ScrollView>
     </View>
   );
 }
 
-/* ======================================
-   ACTION
-====================================== */
-
-function Action({
-  icon,
-  label,
-  color,
-  onPress,
-}: any) {
+function ModernAction({ icon, label, color, onPress }: any) {
   return (
-    <TouchableOpacity
-      style={styles.actionBox}
-      onPress={onPress}
-    >
-      <View
-        style={[
-          styles.actionIcon,
-          {
-            backgroundColor:
-              color + "20",
-          },
-        ]}
-      >
-        <MaterialCommunityIcons
-          name={icon}
-          size={24}
-          color={color}
-        />
+    <TouchableOpacity style={styles.modernActionBox} onPress={onPress} activeOpacity={0.7}>
+      <View style={[styles.actionIconCircle, { backgroundColor: color + "10" }]}>
+        <MaterialCommunityIcons name={icon} size={20} color={color} />
       </View>
-
-      <Text style={styles.actionText}>
-        {label}
-      </Text>
+      <Text style={styles.modernActionLabel}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-/* ======================================
-   STYLES
-====================================== */
-
+/* SPACING STYLES */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#0b1220",
-  },
+  container: { flex: 1, backgroundColor: "#050911" },
+  scroll: { paddingBottom: 20 },
 
-  scroll: {
-    paddingBottom: 40,
+  activeBanner: {
+    flexDirection: "row",
+    backgroundColor: "#00e5a8",
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    alignItems: "center",
   },
+  activeBannerText: { color: "#0b1220", fontWeight: "700", fontSize: 11 },
 
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 6,
     alignItems: "center",
   },
-
-  logo: {
-    color: "#00e5a8",
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-
-  bellWrapper: {
-    position: "relative",
-  },
-
-  badge: {
-    position: "absolute",
-    top: -5,
-    right: -5,
-    backgroundColor: "red",
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+  logo: { color: "#00e5a8", fontSize: 16, fontWeight: "900", letterSpacing: 0.5 },
+  bellWrapper: { position: "relative" },
+  iconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#0f172a",
     justifyContent: "center",
     alignItems: "center",
   },
-
-  badgeText: {
-    color: "#fff",
-    fontSize: 10,
+  badge: {
+    position: "absolute",
+    top: -1,
+    right: -1,
+    backgroundColor: "#ef4444",
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    justifyContent: "center",
+    alignItems: "center",
   },
+  badgeText: { color: "#fff", fontSize: 8, fontWeight: "bold" },
 
   userRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 15,
+    paddingHorizontal: 16,
+    marginVertical: 10,
   },
-
-  avatar: {
-    width: 55,
-    height: 55,
-    borderRadius: 30,
+  avatarContainer: { position: "relative" },
+  avatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: "#1e293b" },
+  editBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: "#2563eb",
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#050911",
   },
-
-  greeting: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-    marginLeft: 10,
-  },
-
-  subText: {
-    color: "#9ca3af",
-    marginLeft: 10,
-  },
-
-  timeBox: {
-    marginLeft: "auto",
-    alignItems: "flex-end",
-  },
-
-  dateText: {
-    color: "#9ca3af",
-    fontSize: 12,
-  },
-
-  timeText: {
-    color: "#00e5a8",
-    fontSize: 15,
-    fontWeight: "bold",
-  },
+  greeting: { color: "#fff", fontSize: 14, fontWeight: "400" },
+  timeBox: { marginLeft: "auto", alignItems: "flex-end" },
+  timeText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  dateText: { color: "#475569", fontSize: 11, marginTop: 1 },
 
   safetyCard: {
     flexDirection: "row",
-    margin: 20,
-    padding: 15,
-    borderRadius: 18,
-    backgroundColor: "#111a2e",
+    marginHorizontal: 16,
+    marginVertical: 6,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "#0f172a",
     alignItems: "center",
+    borderWidth: 1,
   },
-
   shieldCircle: {
-    width: 55,
-    height: 55,
-    borderRadius: 30,
-    backgroundColor: "#00e5a820",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
   },
-
-  cardTitle: {
-    color: "#9ca3af",
+  cardTitle: { color: "#475569", fontSize: 10, fontWeight: "600", textTransform: "uppercase" },
+  safeText: { fontSize: 15, fontWeight: "800" },
+  cardSub: { color: "#64748b", fontSize: 11 },
+  countdownContainer: {
+    marginTop: 6,
+    padding: 4,
+    backgroundColor: "#ef444410",
+    borderRadius: 6,
   },
+  countdown: { color: "#ef4444", fontWeight: "700", fontSize: 11, textAlign: "center" },
 
-  safeText: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-
-  cardSub: {
-    color: "#9ca3af",
-    fontSize: 12,
-  },
-
-  countdown: {
-    color: "#f59e0b",
-    marginTop: 4,
-  },
-
-  liveTag: {
+  telemetryCard: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1f2937",
-    padding: 6,
+    marginHorizontal: 16,
+    marginVertical: 6,
+    backgroundColor: "#0b1222",
     borderRadius: 10,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#1e293b",
   },
+  telemetryItem: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  telemetryLabel: { color: "#475569", fontSize: 11, marginLeft: 4, marginRight: "auto" },
+  telemetryValue: { color: "#fff", fontSize: 11, fontWeight: "700" },
+  telemetryDivider: { width: 1, backgroundColor: "#1e293b", marginHorizontal: 10 },
 
-  greenDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#00e5a8",
-    marginRight: 5,
+  sectionTitle: {
+    color: "#64748b",
+    fontSize: 11,
+    fontWeight: "700",
+    marginLeft: 18,
+    marginTop: 12,
+    marginBottom: 6,
+    textTransform: "uppercase",
   },
-
-  liveText: {
-    color: "#00e5a8",
-  },
-
-  quickRow: {
+  quickGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginVertical: 15,
+    paddingHorizontal: 16,
   },
-
-  actionBox: {
+  modernActionBox: {
+    backgroundColor: "#0f172a",
+    width: (width - 42) / 2,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#1e293b",
+    flexDirection: "row",
     alignItems: "center",
-    width: "23%",
   },
-
-  actionIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
+  actionIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
+    marginRight: 8,
   },
-
-  actionText: {
-    color: "#fff",
-    marginTop: 6,
-    fontSize: 12,
-  },
+  modernActionLabel: { color: "#fff", fontSize: 12, fontWeight: "600" },
 
   sosCard: {
     flexDirection: "row",
-    backgroundColor: "#111a2e",
-    margin: 20,
-    padding: 15,
-    borderRadius: 15,
+    backgroundColor: "#ef444410",
+    marginHorizontal: 16,
+    marginVertical: 8,
+    padding: 12,
+    borderRadius: 14,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ef444425",
   },
-
   sosButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#ef4444",
     justifyContent: "center",
     alignItems: "center",
   },
-
-  sosText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
-
-  sectionTitle: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginLeft: 20,
-    marginBottom: 10,
-  },
-
-  activityBox: {
-    backgroundColor: "#111a2e",
-    marginHorizontal: 20,
-    padding: 15,
-    borderRadius: 12,
-  },
-
-  activityRow: {
-    flexDirection: "row",
+  sosCardTitle: { color: "#ef4444", fontWeight: "800", fontSize: 12 },
+  sosCardSub: { color: "#64748b", fontSize: 11, marginTop: 1 },
+  chevronCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#ef444415",
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 10,
-  },
-
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 10,
-  },
-
-  activityText: {
-    color: "#fff",
-    flex: 1,
-  },
-
-  activityTime: {
-    color: "#9ca3af",
-    fontSize: 12,
-  },
-
-  noActivity: {
-    color: "#9ca3af",
-    textAlign: "center",
+    marginLeft: "auto",
   },
 
   logout: {
-    marginHorizontal: 20,
-    marginTop: 20,
-    padding: 14,
-    backgroundColor: "#1f2937",
-    borderRadius: 12,
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginTop: 8,
+    padding: 10,
+    backgroundColor: "#0f172a",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#1e293b",
   },
-
-  logoutText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "bold",
-  },
+  logoutText: { color: "#64748b", fontWeight: "600", fontSize: 12 },
 });

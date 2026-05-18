@@ -52,10 +52,19 @@ export default function HomeDashboard() {
   useEffect(() => {
     const loadDashboardData = async () => {
       const u = await AsyncStorage.getItem("user");
-      const savedAvatar = await AsyncStorage.getItem("avatar");
 
-      if (u) setUser(JSON.parse(u));
-      if (savedAvatar) setAvatar(savedAvatar);
+      if (u) {
+        const parsedUser = JSON.parse(u);
+        setUser(parsedUser);
+        
+        // Dynamic Key Fix: Scope image retrieval to current user ID
+        const savedAvatar = await AsyncStorage.getItem(`avatar_${parsedUser.id}`);
+        if (savedAvatar) {
+          setAvatar(savedAvatar);
+        } else {
+          setAvatar(null);
+        }
+      }
       
       // Simulate checking active tracking status safely
       const checkTracking = Math.random() > 0.5;
@@ -141,7 +150,13 @@ export default function HomeDashboard() {
     if (!result.canceled) {
       const imageUri = result.assets[0].uri;
       setAvatar(imageUri);
-      await AsyncStorage.setItem("avatar", imageUri);
+      
+      // Dynamic Key Fix: Save avatar using user ID key reference
+      if (user?.id) {
+        await AsyncStorage.setItem(`avatar_${user.id}`, imageUri);
+      } else {
+        await AsyncStorage.setItem("avatar", imageUri);
+      }
 
       try {
         const token = await AsyncStorage.getItem("token");
@@ -311,7 +326,7 @@ export default function HomeDashboard() {
 
   /* ======================================
      NAVIGATION
-  ====================================== */
+  ===================================== */
   const goToTracking = () => {
     router.push("/tracking");
   };
@@ -353,7 +368,7 @@ export default function HomeDashboard() {
           <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
             <Image
               source={{
-                uri: avatar || "https://randomuser.me/api/portraits/men/32.jpg",
+                uri: avatar && avatar.trim() !== "" ? avatar : "https://randomuser.me/api/portraits/men/32.jpg",
               }}
               style={styles.avatar}
             />
@@ -443,7 +458,7 @@ export default function HomeDashboard() {
             <Text style={[styles.sosCardSub, { color: "#00C853" }]}>
               Send emergency alert to authorities
             </Text>
-                      </View>
+          </View>
 
           <View style={styles.chevronCircle}>
             <Ionicons name="chevron-forward" size={18} color="#fff" />

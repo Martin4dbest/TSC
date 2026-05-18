@@ -1,10 +1,10 @@
-# app/api/v1/admin.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List
 
 from app.db.session import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.user import UserRead, UserCreate, UserUpdate
 from app.services.admin_service import (
     create_admin_user,
@@ -17,10 +17,26 @@ from app.core.dependencies import get_current_admin
 
 router = APIRouter()
 
+# =========================================================
+# 🔥 ADMIN COUNT (MUST COME FIRST TO AVOID ROUTE COLLISION)
+# =========================================================
+@router.get("/count")
+def get_admin_count(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    total_admins = db.query(User).filter(
+        User.role.in_([UserRole.ADMIN, UserRole.SUPERADMIN])
+    ).count()
 
-# -------------------------------
-# Create Admin
-# -------------------------------
+    return {
+        "total_admins": total_admins
+    }
+
+
+# =========================================================
+# CREATE ADMIN
+# =========================================================
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def create_admin(
     user_data: UserCreate,
@@ -39,24 +55,9 @@ def create_admin(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# -------------------------------
-# Get Admin by ID
-# -------------------------------
-@router.get("/{admin_id}", response_model=UserRead)
-def read_admin(
-    admin_id: int,
-    db: Session = Depends(get_db),
-    current_admin: User = Depends(get_current_admin)
-):
-    admin = get_admin_by_id(db, admin_id)
-    if not admin:
-        raise HTTPException(status_code=404, detail="Admin not found")
-    return admin
-
-
-# -------------------------------
-# List Admins
-# -------------------------------
+# =========================================================
+# LIST ADMINS
+# =========================================================
 @router.get("/", response_model=List[UserRead])
 def list_admins(
     db: Session = Depends(get_db),
@@ -65,9 +66,26 @@ def list_admins(
     return get_all_admins(db)
 
 
-# -------------------------------
-# Update Admin
-# -------------------------------
+# =========================================================
+# GET ADMIN BY ID  (KEEP THIS AFTER /count SAFETY FIX)
+# =========================================================
+@router.get("/{admin_id}", response_model=UserRead)
+def read_admin(
+    admin_id: int,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    admin = get_admin_by_id(db, admin_id)
+
+    if not admin:
+        raise HTTPException(status_code=404, detail="Admin not found")
+
+    return admin
+
+
+# =========================================================
+# UPDATE ADMIN
+# =========================================================
 @router.put("/{admin_id}", response_model=UserRead)
 def update_admin(
     admin_id: int,
@@ -88,9 +106,9 @@ def update_admin(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# -------------------------------
-# Delete Admin
-# -------------------------------
+# =========================================================
+# DELETE ADMIN
+# =========================================================
 @router.delete("/{admin_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_admin(
     admin_id: int,
