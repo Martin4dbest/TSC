@@ -108,16 +108,20 @@ def my_trips(
 # =====================================
 # RECENT TRACKING
 # =====================================
+
+# =====================================
+# RECENT TRACKING
+# =====================================
 @router.get("/recent")
 def get_recent_tracking(
+    user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     try:
         logs = (
             db.query(TrackingLog)
             .filter(
-                TrackingLog.user_id == current_user.id
+                TrackingLog.user_id == user_id
             )
             .order_by(
                 TrackingLog.created_at.desc()
@@ -133,7 +137,6 @@ def get_recent_tracking(
             status_code=400,
             detail=str(e),
         )
-
 
 # =====================================
 # ADMIN ALL TRIPS

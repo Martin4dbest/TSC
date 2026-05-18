@@ -30,13 +30,13 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
 
     # -----------------------
-    # ROLE (SAFE FIX)
+    # ROLE
     # -----------------------
     role = Column(
         Enum(
             UserRole,
             name="userrole",
-            native_enum=False,  # keeps NeonDB safe
+            native_enum=False,
             values_callable=lambda x: [e.value for e in x]
         ),
         default=UserRole.USER.value,
@@ -50,12 +50,19 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
 
     # -----------------------
-    # RELATIONSHIP
+    # RELATIONSHIPS
     # -----------------------
     emergencies = relationship(
         "EmergencyAlert",
         back_populates="user",
         cascade="all, delete-orphan"
+    )
+
+    wallet = relationship(
+        "Wallet",
+        back_populates="user",
+        uselist=False,
+        lazy="select"
     )
 
     # -----------------------

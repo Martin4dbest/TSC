@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, ForeignKey, Float, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.db.base import Base
+from app.db.base_class import Base
 
 
 class Wallet(Base):
@@ -17,5 +17,7 @@ class Wallet(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationship
-    user = relationship("User", backref="wallet")
+    user = relationship(
+        "User",
+        back_populates="wallet"
+    )

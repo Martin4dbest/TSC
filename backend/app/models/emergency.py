@@ -21,14 +21,20 @@ class EmergencyAlert(Base):
     )
 
     # =========================
-    # EMERGENCY DATA
+    # USER INFO
     # =========================
     full_name = Column(String, nullable=True)
 
+    # NEW FIELDS (FIX)
+    phone = Column(String, nullable=True, index=True)
+    email = Column(String, nullable=True, index=True)
+
+    # =========================
+    # EMERGENCY DATA
+    # =========================
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
 
-    # NEW: resolved/manual address (if user sends it)
     address = Column(String, nullable=True)
 
     message = Column(String, nullable=False, default="🚨 Emergency Alert")
@@ -45,7 +51,7 @@ class EmergencyAlert(Base):
     escalated_at = Column(DateTime, nullable=True)
 
     # =========================
-    # NEW: SHARE FEATURE SUPPORT
+    # SHARE FEATURE SUPPORT
     # =========================
-    screenshot = Column(String, nullable=True)   # base64 or image URL
-    share_type = Column(String, nullable=True)    # "sos" | "share_location"
+    screenshot = Column(String, nullable=True)
+    share_type = Column(String, nullable=True)
