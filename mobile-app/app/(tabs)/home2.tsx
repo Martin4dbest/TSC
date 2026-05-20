@@ -387,7 +387,7 @@ export default function HomeDashboard() {
             <MaterialCommunityIcons name="alarm-light" size={22} color="#fff" />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.sosCardTitle}>CRITICAL EMERGENCY DISTRESS</Text>
+            <Text style={styles.sosCardTitle}>CRITICAL EMERGENCY DISTRESS  HERE</Text>
             <Text style={styles.sosCardSub}>Broadcast tactical array to grid responders</Text>
           </View>
           <View style={styles.chevronCircle}>
@@ -614,3 +614,4 @@ const styles = StyleSheet.create({
   },
   logoutText: { color: "#64748b", fontWeight: "600", fontSize: 12 },
 });
+
