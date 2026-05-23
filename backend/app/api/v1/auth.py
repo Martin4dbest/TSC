@@ -1,6 +1,4 @@
-# app/api/v1/auth.py
-
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 import jwt
@@ -11,7 +9,6 @@ from app.services.auth_service import (
     register_user,
     login_user,
     create_access_token,
-    create_refresh_token,
     decode_token_and_get_user
 )
 from app.db.session import get_db
@@ -41,11 +38,10 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
         )
 
         access_token = create_access_token({"sub": str(user.id)})
-        refresh_token = create_refresh_token({"sub": str(user.id)})
 
         return {
             "access_token": access_token,
-            "refresh_token": refresh_token,
+            "refresh_token": access_token,
             "token_type": "bearer",
             "role": user.role
         }
@@ -67,13 +63,11 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
             password=data.password
         )
 
-        user = result["user"]
-
         return {
             "access_token": result["access_token"],
             "refresh_token": result["refresh_token"],
             "token_type": "bearer",
-            "role": user.role
+            "role": result["role"]
         }
 
     except Exception as e:
@@ -101,8 +95,6 @@ def get_me(
             "role": user.role
         }
 
-    except HTTPException as e:
-        raise e
     except Exception:
         raise HTTPException(
             status_code=401,
@@ -125,12 +117,12 @@ def refresh_token(data: RefreshRequest):
         user_id = int(payload.get("sub"))
 
         new_access_token = create_access_token({"sub": str(user_id)})
-        new_refresh_token = create_refresh_token({"sub": str(user_id)})
 
         return {
             "access_token": new_access_token,
-            "refresh_token": new_refresh_token,
-            "token_type": "bearer"
+            "refresh_token": data.token,
+            "token_type": "bearer",
+            "role": None
         }
 
     except jwt.ExpiredSignatureError:
