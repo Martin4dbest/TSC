@@ -1,26 +1,26 @@
+# app/api/v1/auth.py
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 import jwt
-from pydantic import BaseModel
 
 from app.schemas.user import UserCreate, UserLogin, Token
 from app.services.auth_service import (
     register_user,
     login_user,
-    create_access_token,
-    decode_token_and_get_user
+    create_access_token
 )
 from app.db.session import get_db
 from app.core.config import settings
 
+# IMPORTANT: adjust this import to your project structure
+from app.services.auth_service import decode_token_and_get_user
+
+
 router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
-
-
-class RefreshRequest(BaseModel):
-    token: str
 
 
 # -------------------------------
@@ -42,8 +42,7 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
         return {
             "access_token": access_token,
             "refresh_token": access_token,
-            "token_type": "bearer",
-            "role": user.role
+            "token_type": "bearer"
         }
 
     except Exception as e:
@@ -65,9 +64,8 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
 
         return {
             "access_token": result["access_token"],
-            "refresh_token": result["refresh_token"],
-            "token_type": "bearer",
-            "role": result["role"]
+            "refresh_token": result["access_token"],
+            "token_type": "bearer"
         }
 
     except Exception as e:
@@ -78,7 +76,7 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
 
 
 # -------------------------------
-# GET CURRENT USER
+# GET CURRENT USER (FIX FOR YOUR DASHBOARD)
 # -------------------------------
 @router.get("/me")
 def get_me(
@@ -91,14 +89,13 @@ def get_me(
         return {
             "id": user.id,
             "email": user.email,
-            "full_name": user.full_name,
-            "role": user.role
+            "full_name": user.full_name
         }
 
-    except Exception:
+    except Exception as e:
         raise HTTPException(
             status_code=401,
-            detail="Invalid or expired token"
+            detail=str(e)
         )
 
 
@@ -106,10 +103,10 @@ def get_me(
 # REFRESH TOKEN
 # -------------------------------
 @router.post("/refresh", response_model=Token)
-def refresh_token(data: RefreshRequest):
+def refresh_token(token: str):
     try:
         payload = jwt.decode(
-            data.token,
+            token,
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM]
         )
@@ -120,9 +117,8 @@ def refresh_token(data: RefreshRequest):
 
         return {
             "access_token": new_access_token,
-            "refresh_token": data.token,
-            "token_type": "bearer",
-            "role": None
+            "refresh_token": token,
+            "token_type": "bearer"
         }
 
     except jwt.ExpiredSignatureError:

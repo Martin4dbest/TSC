@@ -28,16 +28,7 @@ const BASE_URL = "https://tsc-backend-nefz.onrender.com";
 export default function Dashboard() {
   const router = useRouter();
 
-
-  const [role, setRole] = useState<string>("admin");
-
-useEffect(() => {
-  const savedRole = localStorage.getItem("role");
-  if (savedRole) {
-    setRole(savedRole);
-  }
-}, []);
-
+  const [role, setRole] = useState<"admin" | "superadmin">("admin");
   const [darkMode, setDarkMode] = useState(true);
   const [status, setStatus] = useState("Checking systems...");
   const [loading, setLoading] = useState(true);
