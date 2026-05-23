@@ -13,10 +13,7 @@ from app.services.auth_service import (
 )
 from app.db.session import get_db
 from app.core.config import settings
-
-# IMPORTANT: adjust this import to your project structure
 from app.services.auth_service import decode_token_and_get_user
-
 
 router = APIRouter()
 
@@ -37,12 +34,18 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
             full_name=data.full_name
         )
 
-        access_token = create_access_token({"sub": str(user.id)})
+        access_token = create_access_token(
+            {
+                "sub": str(user.id),
+                "role": user.role.value
+            }
+        )
 
         return {
             "access_token": access_token,
             "refresh_token": access_token,
-            "token_type": "bearer"
+            "token_type": "bearer",
+            "role": user.role.value
         }
 
     except Exception as e:
@@ -50,7 +53,7 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
 
 
 # -------------------------------
-# LOGIN
+# LOGIN (FIXED - IMPORTANT PART)
 # -------------------------------
 @router.post("/login", response_model=Token)
 def login(data: UserLogin, db: Session = Depends(get_db)):
@@ -62,10 +65,20 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
             password=data.password
         )
 
+        user = result["user"]
+
+        access_token = create_access_token(
+            {
+                "sub": str(user.id),
+                "role": user.role.value
+            }
+        )
+
         return {
-            "access_token": result["access_token"],
-            "refresh_token": result["access_token"],
-            "token_type": "bearer"
+            "access_token": access_token,
+            "refresh_token": access_token,
+            "token_type": "bearer",
+            "role": user.role.value   # ✅ THIS IS WHAT FIXES YOUR DASHBOARD
         }
 
     except Exception as e:
@@ -76,7 +89,7 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
 
 
 # -------------------------------
-# GET CURRENT USER (FIX FOR YOUR DASHBOARD)
+# GET CURRENT USER
 # -------------------------------
 @router.get("/me")
 def get_me(
@@ -89,7 +102,8 @@ def get_me(
         return {
             "id": user.id,
             "email": user.email,
-            "full_name": user.full_name
+            "full_name": user.full_name,
+            "role": user.role.value
         }
 
     except Exception as e:
@@ -113,12 +127,17 @@ def refresh_token(token: str):
 
         user_id = int(payload.get("sub"))
 
-        new_access_token = create_access_token({"sub": str(user_id)})
+        new_access_token = create_access_token(
+            {
+                "sub": str(user_id)
+            }
+        )
 
         return {
             "access_token": new_access_token,
             "refresh_token": token,
-            "token_type": "bearer"
+            "token_type": "bearer",
+            "role": payload.get("role", "user")  # fallback safe
         }
 
     except jwt.ExpiredSignatureError:
