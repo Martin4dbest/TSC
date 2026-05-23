@@ -27,7 +27,7 @@ def seed_superadmin():
         # create superadmin
         superadmin = User(
             email=email,
-            phone="08000000000",
+            phone="09045531092",
             full_name="TSC System Admin",
             hashed_password=hash_password(password),
             role=UserRole.SUPERADMIN,
