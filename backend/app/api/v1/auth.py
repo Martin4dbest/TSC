@@ -1,26 +1,29 @@
 # app/api/v1/auth.py
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 import jwt
+from pydantic import BaseModel
 
 from app.schemas.user import UserCreate, UserLogin, Token
 from app.services.auth_service import (
     register_user,
     login_user,
-    create_access_token
+    create_access_token,
+    create_refresh_token,
+    decode_token_and_get_user
 )
 from app.db.session import get_db
 from app.core.config import settings
 
-# IMPORTANT: adjust this import to your project structure
-from app.services.auth_service import decode_token_and_get_user
-
-
 router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+
+class RefreshRequest(BaseModel):
+    token: str
 
 
 # -------------------------------
@@ -38,10 +41,11 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
         )
 
         access_token = create_access_token({"sub": str(user.id)})
+        refresh_token = create_refresh_token({"sub": str(user.id)})
 
         return {
             "access_token": access_token,
-            "refresh_token": access_token,
+            "refresh_token": refresh_token,
             "token_type": "bearer"
         }
 
@@ -64,7 +68,7 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
 
         return {
             "access_token": result["access_token"],
-            "refresh_token": result["access_token"],
+            "refresh_token": result["refresh_token"],
             "token_type": "bearer"
         }
 
@@ -76,7 +80,7 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
 
 
 # -------------------------------
-# GET CURRENT USER (FIX FOR YOUR DASHBOARD)
+# GET CURRENT USER
 # -------------------------------
 @router.get("/me")
 def get_me(
@@ -89,13 +93,16 @@ def get_me(
         return {
             "id": user.id,
             "email": user.email,
-            "full_name": user.full_name
+            "full_name": user.full_name,
+            "role": user.role
         }
 
-    except Exception as e:
+    except HTTPException as e:
+        raise e
+    except Exception:
         raise HTTPException(
             status_code=401,
-            detail=str(e)
+            detail="Invalid or expired token"
         )
 
 
@@ -103,10 +110,10 @@ def get_me(
 # REFRESH TOKEN
 # -------------------------------
 @router.post("/refresh", response_model=Token)
-def refresh_token(token: str):
+def refresh_token(data: RefreshRequest):
     try:
         payload = jwt.decode(
-            token,
+            data.token,
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM]
         )
@@ -114,10 +121,11 @@ def refresh_token(token: str):
         user_id = int(payload.get("sub"))
 
         new_access_token = create_access_token({"sub": str(user_id)})
+        new_refresh_token = create_refresh_token({"sub": str(user_id)})
 
         return {
             "access_token": new_access_token,
-            "refresh_token": token,
+            "refresh_token": new_refresh_token,
             "token_type": "bearer"
         }
 

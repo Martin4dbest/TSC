@@ -1,17 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { login } from "@/lib/auth";
 import { Shield, Lock, User, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -26,30 +22,46 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
+      // Login request
       const data = await login(email, password);
 
       console.log("LOGIN SUCCESS:", data);
 
+      // Get token
       const token = data?.access_token;
 
       if (!token) {
         throw new Error("No access token returned from backend");
       }
 
+      // Save token
       localStorage.setItem("token", token);
 
-      const role =
-        email === "superadmin@tsc.com" ? "superadmin" : "admin";
+      // Get actual role from backend
+      // supports both:
+      // { access_token, role }
+      // OR
+      // { access_token, user: { role } }
+      const role = data?.role || data?.user?.role;
 
+      if (!role) {
+        throw new Error("No role returned from backend");
+      }
+
+      // Save correct role
       localStorage.setItem("role", role);
 
-      if (role === "superadmin") {
-        router.push("/dashboard");
-      } else {
-        router.push("/dashboard");
-      }
-    } catch (err: any) {
-      setError(err.message || "Login failed");
+      console.log("ROLE SAVED:", role);
+
+      // Redirect immediately
+      window.location.href = "/dashboard";
+    } catch (err) {
+      console.error(err);
+
+      const errorMessage =
+        err instanceof Error ? err.message : "Login failed";
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -58,7 +70,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#020817] text-white px-4">
       <div className="w-full max-w-md bg-[#0a1120] border border-white/10 rounded-xl p-8 shadow-2xl">
-
+        
         {/* HEADER */}
         <div className="text-center mb-6">
           <div className="flex justify-center">
@@ -87,11 +99,13 @@ export default function LoginPage() {
 
           <div className="flex items-center mt-2 bg-[#020817] border border-white/10 rounded px-3">
             <User size={14} />
+
             <input
+              type="email"
+              placeholder="Enter your email"
               className="flex-1 bg-transparent p-3 outline-none min-w-0"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              type="email"
             />
           </div>
         </div>
@@ -107,6 +121,7 @@ export default function LoginPage() {
 
             <input
               type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
               className="flex-1 bg-transparent p-3 outline-none min-w-0"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -115,18 +130,22 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
-              className="shrink-0 ml-2 text-slate-400 hover:text-white cursor-pointer"
+              className="shrink-0 ml-2 text-slate-400 hover:text-white"
             >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              {showPassword ? (
+                <EyeOff size={16} />
+              ) : (
+                <Eye size={16} />
+              )}
             </button>
           </div>
         </div>
 
-        {/* BUTTON */}
+        {/* LOGIN BUTTON */}
         <button
           onClick={handleLogin}
           disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-500 py-3 text-xs uppercase font-bold"
+          className="w-full bg-blue-600 hover:bg-blue-500 py-3 text-xs uppercase font-bold rounded disabled:opacity-50"
         >
           {loading ? "Authenticating..." : "Login"}
         </button>
