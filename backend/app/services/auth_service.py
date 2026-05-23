@@ -25,7 +25,7 @@ def register_user(
     phone: str = None,
     password: str = None,
     full_name: str = None,
-    role: str = "user"   # ✅ FIXED: default is user
+    role: str = "user"
 ):
 
     if not email and not phone:
@@ -39,9 +39,7 @@ def register_user(
     if phone:
         query = query.filter(User.phone == phone)
 
-    existing_user = query.first()
-
-    if existing_user:
+    if query.first():
         raise ValueError("User already exists")
 
     user = User(
@@ -49,7 +47,7 @@ def register_user(
         phone=phone,
         full_name=full_name,
         hashed_password=hash_password(password),
-        role="user"   # ✅ FIXED: always force normal user
+        role=role
     )
 
     db.add(user)
@@ -60,7 +58,7 @@ def register_user(
 
 
 # =====================================================
-# LOGIN USER
+# LOGIN USER (FIXED)
 # =====================================================
 
 def login_user(
@@ -94,15 +92,18 @@ def login_user(
         "role": user.role
     })
 
-    refresh_token = create_refresh_token(user.id)
-
-    return {
-        "user": {
-            "id": user.id,
-            "email": user.email,
-            "full_name": user.full_name,
-            "role": user.role
+    refresh_token = jwt.encode(
+        {
+            "sub": str(user.id),
+            "exp": datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+            "type": "refresh"
         },
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM
+    )
+
+    # ✅ CLEAN RESPONSE (NO nested dict, NO duplication)
+    return {
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
@@ -111,31 +112,10 @@ def login_user(
 
 
 # =====================================================
-# CREATE REFRESH TOKEN
+# DECODE TOKEN
 # =====================================================
 
-def create_refresh_token(user_id: int):
-
-    expire = datetime.utcnow() + timedelta(
-        days=REFRESH_TOKEN_EXPIRE_DAYS
-    )
-
-    payload = {
-        "sub": str(user_id),
-        "exp": expire,
-        "type": "refresh"
-    }
-
-    token = jwt.encode(
-        payload,
-        settings.SECRET_KEY,
-        algorithm=settings.ALGORITHM
-    )
-
-    return token
-
-
-def decode_token_and_get_user(token: str, db):
+def decode_token_and_get_user(token: str, db: Session):
     try:
         payload = jwt.decode(
             token,
