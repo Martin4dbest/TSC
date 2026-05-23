@@ -1,12 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ShieldAlert, MapPin, Bell, Image as ImageIcon } from "lucide-react";
+import {
+  ShieldAlert,
+  MapPin,
+  Bell,
+  Image as ImageIcon,
+} from "lucide-react";
 
 /* =========================
-   BASE CONFIG
+   BASE CONFIG (PRODUCTION SAFE)
 ========================= */
-const BASE_URL = "http://10.66.220.196:8000/api/v1";
+const BASE_URL = "https://tsc-backend-nefz.onrender.com/api/v1";
 
 const API_URL = `${BASE_URL}/emergency/all`;
 const UPDATE_URL = `${BASE_URL}/emergency`;
@@ -76,7 +81,9 @@ const getAddressFromCoords = async (lat: any, lng: any) => {
     ].filter(Boolean);
 
     const final =
-      parts.length > 0 ? parts.join(", ") : data?.display_name || "Unknown location";
+      parts.length > 0
+        ? parts.join(", ")
+        : data?.display_name || "Unknown location";
 
     geoCache.set(key, final);
 
@@ -116,10 +123,12 @@ export default function EmergencyPage() {
           if (item.address && item.address !== "Unknown address") {
             location = item.address;
           } else if (item.latitude && item.longitude) {
-            location = await getAddressFromCoords(item.latitude, item.longitude);
+            location = await getAddressFromCoords(
+              item.latitude,
+              item.longitude
+            );
           }
 
-          // ✅ FIXED PHONE HANDLING (VERY IMPORTANT)
           const phone =
             item.phone_number ||
             item.phone ||
@@ -129,13 +138,12 @@ export default function EmergencyPage() {
 
           return {
             id: item.id,
-
             user:
               item.full_name ||
               item.user?.full_name ||
               "Unknown user",
 
-            phone, // ✅ guaranteed
+            phone,
 
             email:
               item.email ||
@@ -257,9 +265,10 @@ export default function EmergencyPage() {
         {alerts.map((alert) => (
           <div
             key={alert.id}
-            className={`p-4 rounded border bg-zinc-900 ${getAccent(alert.level)}`}
+            className={`p-4 rounded border bg-zinc-900 ${getAccent(
+              alert.level
+            )}`}
           >
-
             <div className="flex justify-between">
               <span className="text-xs px-2 py-1 rounded bg-zinc-800 border border-zinc-700">
                 {alert.type === "share_location"
@@ -286,7 +295,6 @@ export default function EmergencyPage() {
               </span>
             </p>
 
-            {/* ✅ PHONE ALWAYS SHOWS */}
             <p className="text-xs mt-1 text-zinc-400">
               📞 {alert.phone}
             </p>
@@ -295,40 +303,43 @@ export default function EmergencyPage() {
               ✉️ {alert.email}
             </p>
 
-            {/* SCREENSHOT */}
             {alert.screenshot && (
               <div className="mt-4">
                 <p className="text-xs text-zinc-400 mb-2 flex items-center gap-1">
                   <ImageIcon size={12} />
-                  Shared Screenshot
+                  Screenshot
                 </p>
 
                 <img
                   src={alert.screenshot}
-                  alt="shared screenshot"
                   className="rounded border border-zinc-700 max-h-64"
                 />
               </div>
             )}
 
-            {/* ACTIONS */}
             <div className="mt-4 flex gap-2">
               <button
-                onClick={() => updateAlertStatus(alert.id, "dispatched")}
+                onClick={() =>
+                  updateAlertStatus(alert.id, "dispatched")
+                }
                 className="bg-blue-600/20 text-blue-300 px-3 py-1 text-xs rounded"
               >
                 Dispatch
               </button>
 
               <button
-                onClick={() => updateAlertStatus(alert.id, "resolved")}
+                onClick={() =>
+                  updateAlertStatus(alert.id, "resolved")
+                }
                 className="bg-green-600/20 text-green-300 px-3 py-1 text-xs rounded"
               >
                 Resolve
               </button>
 
               <button
-                onClick={() => updateAlertStatus(alert.id, "escalated")}
+                onClick={() =>
+                  updateAlertStatus(alert.id, "escalated")
+                }
                 className="bg-red-600/20 text-red-300 px-3 py-1 text-xs rounded"
               >
                 Escalate
@@ -338,7 +349,7 @@ export default function EmergencyPage() {
         ))}
       </div>
 
-      {/* CONFIRM MODAL */}
+      {/* CONFIRM */}
       {showConfirm && (
         <div
           className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999]"
@@ -348,7 +359,9 @@ export default function EmergencyPage() {
             className="bg-zinc-900 border border-zinc-700 p-6 rounded w-[300px]"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-sm font-semibold mb-2">Are you sure?</h2>
+            <h2 className="text-sm font-semibold mb-2">
+              Are you sure?
+            </h2>
 
             <p className="text-xs text-zinc-400 mb-4">
               This will clear all emergency alerts.
@@ -372,7 +385,6 @@ export default function EmergencyPage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
