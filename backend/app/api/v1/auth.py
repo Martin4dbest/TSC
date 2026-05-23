@@ -46,7 +46,8 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "token_type": "bearer"
+            "token_type": "bearer",
+            "role": user.role
         }
 
     except Exception as e:
@@ -66,10 +67,13 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
             password=data.password
         )
 
+        user = result["user"]
+
         return {
             "access_token": result["access_token"],
             "refresh_token": result["refresh_token"],
-            "token_type": "bearer"
+            "token_type": "bearer",
+            "role": user.role
         }
 
     except Exception as e:
