@@ -1,13 +1,30 @@
 "use client";
 
 import { useState } from "react";
-
-//updated
-import { login } from "../../lib/auth";
-
 import { Shield, Lock, User, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { jwtDecode } from "jwt-decode";
+
+const API_BASE_URL = "https://tsc-backend-nefz.onrender.com";
+
+// ✅ LOGIN FUNCTION INSIDE FILE (NO IMPORTS)
+async function login(email: string, password: string) {
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.detail || "Login failed");
+  }
+
+  return data;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,18 +55,15 @@ export default function LoginPage() {
         throw new Error("No access token returned from backend");
       }
 
-      // 🔥 DECODE TOKEN (REAL SOURCE OF ROLE)
       const decoded: any = jwtDecode(token);
       const role = decoded?.role;
 
       console.log("DECODED USER:", decoded);
       console.log("ROLE FOUND:", role);
 
-      // SAVE AUTH DATA
       localStorage.setItem("token", token);
       localStorage.setItem("role", role || "user");
 
-      // 🚀 ROLE BASED REDIRECT
       if (role === "superadmin") {
         router.push("/dashboard/superadmin");
       } else {
@@ -67,7 +81,6 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-[#020817] text-white px-4">
       <div className="w-full max-w-md bg-[#0a1120] border border-white/10 rounded-xl p-8 shadow-2xl">
 
-        {/* HEADER */}
         <div className="text-center mb-6">
           <div className="flex justify-center">
             <div className="bg-blue-600 p-3 rounded-full">
@@ -80,14 +93,12 @@ export default function LoginPage() {
           </h1>
         </div>
 
-        {/* ERROR */}
         {error && (
           <div className="mb-4 text-xs text-red-400 bg-red-900/20 p-2 rounded">
             {error}
           </div>
         )}
 
-        {/* EMAIL */}
         <div className="mb-4">
           <label className="text-[10px] uppercase text-slate-400">
             Email
@@ -104,7 +115,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* PASSWORD */}
         <div className="mb-6">
           <label className="text-[10px] uppercase text-slate-400">
             Password
@@ -130,7 +140,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* BUTTON */}
         <button
           onClick={handleLogin}
           disabled={loading}
