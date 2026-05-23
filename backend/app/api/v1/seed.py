@@ -11,7 +11,7 @@ def seed_superadmin():
     db = SessionLocal()
 
     try:
-        email = "tscsuper@gmail.com"
+        email = "tscsuper2@gmail.com"
         password = "2026@TSC"
 
         # check if already exists
@@ -21,7 +21,7 @@ def seed_superadmin():
             return {
                 "message": "⚠️ Superadmin already exists",
                 "email": existing.email,
-                "role": str(existing.role),
+                "role": existing.role.value  # FIXED HERE TOO
             }
 
         # create superadmin
@@ -43,12 +43,15 @@ def seed_superadmin():
             "message": "✅ Superadmin created successfully",
             "email": email,
             "password": password,
-            "role": str(superadmin.role),
+            "role": superadmin.role.value  # ✅ FIXED (important)
         }
 
     except Exception as e:
         db.rollback()
-        return {"error": str(e)}
+        return {
+            "message": "❌ Error creating superadmin",
+            "error": str(e)
+        }
 
     finally:
         db.close()
