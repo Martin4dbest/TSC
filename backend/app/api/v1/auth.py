@@ -9,11 +9,11 @@ from app.schemas.user import UserCreate, UserLogin, Token
 from app.services.auth_service import (
     register_user,
     login_user,
-    create_access_token
+    decode_token_and_get_user
 )
 from app.db.session import get_db
 from app.core.config import settings
-from app.services.auth_service import decode_token_and_get_user
+from app.core.security import create_access_token
 
 router = APIRouter()
 
@@ -34,18 +34,18 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
             full_name=data.full_name
         )
 
-        access_token = create_access_token(
-            {
-                "sub": str(user.id),
-                "role": user.role.value
-            }
-        )
+        access_token = create_access_token({
+            "sub": str(user.id),
+            "role": user.role.value if hasattr(user.role, "value") else user.role
+        })
+
+        role = user.role.value if hasattr(user.role, "value") else user.role
 
         return {
             "access_token": access_token,
             "refresh_token": access_token,
             "token_type": "bearer",
-            "role": user.role.value
+            "role": role
         }
 
     except Exception as e:
@@ -53,7 +53,7 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
 
 
 # -------------------------------
-# LOGIN (FIXED - IMPORTANT PART)
+# LOGIN
 # -------------------------------
 @router.post("/login", response_model=Token)
 def login(data: UserLogin, db: Session = Depends(get_db)):
@@ -67,18 +67,16 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
 
         user = result["user"]
 
-        access_token = create_access_token(
-            {
-                "sub": str(user.id),
-                "role": user.role.value
-            }
-        )
+        access_token = create_access_token({
+            "sub": str(user["id"]),
+            "role": user["role"]
+        })
 
         return {
             "access_token": access_token,
-            "refresh_token": access_token,
+            "refresh_token": result["refresh_token"],
             "token_type": "bearer",
-            "role": user.role.value   # ✅ THIS IS WHAT FIXES YOUR DASHBOARD
+            "role": user["role"]   # ✅ CRITICAL FIX
         }
 
     except Exception as e:
@@ -89,28 +87,23 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
 
 
 # -------------------------------
-# GET CURRENT USER
+# ME
 # -------------------------------
 @router.get("/me")
 def get_me(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
-    try:
-        user = decode_token_and_get_user(token, db)
+    user = decode_token_and_get_user(token, db)
 
-        return {
-            "id": user.id,
-            "email": user.email,
-            "full_name": user.full_name,
-            "role": user.role.value
-        }
+    role = user.role.value if hasattr(user.role, "value") else user.role
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=401,
-            detail=str(e)
-        )
+    return {
+        "id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": role
+    }
 
 
 # -------------------------------
@@ -118,30 +111,22 @@ def get_me(
 # -------------------------------
 @router.post("/refresh", response_model=Token)
 def refresh_token(token: str):
-    try:
-        payload = jwt.decode(
-            token,
-            settings.SECRET_KEY,
-            algorithms=[settings.ALGORITHM]
-        )
+    payload = jwt.decode(
+        token,
+        settings.SECRET_KEY,
+        algorithms=[settings.ALGORITHM]
+    )
 
-        user_id = int(payload.get("sub"))
+    user_id = payload.get("sub")
 
-        new_access_token = create_access_token(
-            {
-                "sub": str(user_id)
-            }
-        )
+    new_access_token = create_access_token({
+        "sub": str(user_id),
+        "role": payload.get("role", "user")
+    })
 
-        return {
-            "access_token": new_access_token,
-            "refresh_token": token,
-            "token_type": "bearer",
-            "role": payload.get("role", "user")  # fallback safe
-        }
-
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    return {
+        "access_token": new_access_token,
+        "refresh_token": token,
+        "token_type": "bearer",
+        "role": payload.get("role", "user")
+    }
