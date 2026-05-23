@@ -1,9 +1,13 @@
+from fastapi import APIRouter
 from app.db.session import SessionLocal
 from app.models.user import User, UserRole
 from app.core.security import hash_password
 
+router = APIRouter()
 
-def create_superadmin():
+
+@router.get("/seed/superadmin")
+def seed_superadmin():
     db = SessionLocal()
 
     try:
@@ -14,10 +18,11 @@ def create_superadmin():
         existing = db.query(User).filter(User.email == email).first()
 
         if existing:
-            print("⚠️ Superadmin already exists")
-            print("Email:", existing.email)
-            print("Role:", existing.role)
-            return
+            return {
+                "message": "⚠️ Superadmin already exists",
+                "email": existing.email,
+                "role": str(existing.role),
+            }
 
         # create superadmin
         superadmin = User(
@@ -27,25 +32,23 @@ def create_superadmin():
             hashed_password=hash_password(password),
             role=UserRole.SUPERADMIN,
             is_active=True,
-            is_verified=True
+            is_verified=True,
         )
 
         db.add(superadmin)
         db.commit()
         db.refresh(superadmin)
 
-        print("✅ Superadmin created successfully")
-        print("Email:", email)
-        print("Password:", password)
-        print("Role:", superadmin.role)
+        return {
+            "message": "✅ Superadmin created successfully",
+            "email": email,
+            "password": password,
+            "role": str(superadmin.role),
+        }
 
     except Exception as e:
         db.rollback()
-        print("❌ Error creating superadmin:", str(e))
+        return {"error": str(e)}
 
     finally:
         db.close()
-
-
-if __name__ == "__main__":
-    create_superadmin()

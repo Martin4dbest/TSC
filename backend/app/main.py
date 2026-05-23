@@ -7,6 +7,7 @@ import os
 from app.api.v1 import auth, users, wallet, admin, tracking, emergency
 
 # ✅ IMPORTANT: explicit model imports (prevents SQLAlchemy mapper crash)
+from app.api.v1 import seed
 from app.models.user import User
 from app.models.wallet import Wallet
 from app.models.transaction import Transaction
@@ -63,6 +64,7 @@ app.include_router(wallet.router, prefix="/api/v1/wallet", tags=["Wallet"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(tracking.router, prefix="/api/v1/tracking", tags=["Tracking"])
 app.include_router(emergency.router, prefix="/api/v1/emergency", tags=["Emergency"])
+app.include_router(seed.router, prefix="/api/v1")
 
 
 # =====================================
