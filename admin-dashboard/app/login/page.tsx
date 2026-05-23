@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { login } from "@/lib/auth";
+import { login } from "../../lib/auth";
 import { Shield, Lock, User, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { jwtDecode } from "jwt-decode";
