@@ -3,8 +3,12 @@
 import { useState } from "react";
 import { login } from "@/lib/auth";
 import { Shield, Lock, User, Eye, EyeOff } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { jwtDecode } from "jwt-decode";
 
 export default function LoginPage() {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -25,24 +29,29 @@ export default function LoginPage() {
 
       const data = await login(email, password);
 
-      console.log("LOGIN SUCCESS:", data);
-
       const token = data?.access_token;
 
       if (!token) {
         throw new Error("No access token returned from backend");
       }
 
-      // Save token only
+      // 🔥 DECODE TOKEN (REAL SOURCE OF ROLE)
+      const decoded: any = jwtDecode(token);
+      const role = decoded?.role;
+
+      console.log("DECODED USER:", decoded);
+      console.log("ROLE FOUND:", role);
+
+      // SAVE AUTH DATA
       localStorage.setItem("token", token);
+      localStorage.setItem("role", role || "user");
 
-      // Temporary role
-      localStorage.setItem("role", "user");
-
-      alert("Login successful");
-
-      // Redirect
-      window.location.href = "/dashboard";
+      // 🚀 ROLE BASED REDIRECT
+      if (role === "superadmin") {
+        router.push("/dashboard/superadmin");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Login failed");
@@ -113,11 +122,7 @@ export default function LoginPage() {
               onClick={() => setShowPassword((prev) => !prev)}
               className="shrink-0 ml-2 text-slate-400 hover:text-white cursor-pointer"
             >
-              {showPassword ? (
-                <EyeOff size={16} />
-              ) : (
-                <Eye size={16} />
-              )}
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
         </div>
