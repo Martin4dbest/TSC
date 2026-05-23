@@ -5,7 +5,11 @@ from sqlalchemy.orm import Session
 from jose import jwt
 
 from app.models.user import User
-from app.core.security import hash_password, verify_password
+from app.core.security import (
+    hash_password,
+    verify_password,
+    create_access_token
+)
 from app.core.config import settings
 
 REFRESH_TOKEN_EXPIRE_DAYS = 7
@@ -14,13 +18,14 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 # =====================================================
 # REGISTER USER
 # =====================================================
+
 def register_user(
     db: Session,
     email: str = None,
     phone: str = None,
     password: str = None,
     full_name: str = None,
-    role: str = "user"
+    role: str = "user"   # ✅ FIXED: default is user
 ):
 
     if not email and not phone:
@@ -44,7 +49,7 @@ def register_user(
         phone=phone,
         full_name=full_name,
         hashed_password=hash_password(password),
-        role=role  # ✅ IMPORTANT FIX: respect role if passed
+        role="user"   # ✅ FIXED: always force normal user
     )
 
     db.add(user)
@@ -57,6 +62,7 @@ def register_user(
 # =====================================================
 # LOGIN USER
 # =====================================================
+
 def login_user(
     db: Session,
     email: str = None,
@@ -83,7 +89,6 @@ def login_user(
     if not verify_password(password, user.hashed_password):
         raise ValueError("Invalid credentials")
 
-    # ✅ FIX: include role inside JWT
     access_token = create_access_token({
         "sub": str(user.id),
         "role": user.role
@@ -101,16 +106,19 @@ def login_user(
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "role": user.role  # ✅ frontend needs this
+        "role": user.role
     }
 
 
 # =====================================================
 # CREATE REFRESH TOKEN
 # =====================================================
+
 def create_refresh_token(user_id: int):
 
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.utcnow() + timedelta(
+        days=REFRESH_TOKEN_EXPIRE_DAYS
+    )
 
     payload = {
         "sub": str(user_id),
@@ -118,17 +126,16 @@ def create_refresh_token(user_id: int):
         "type": "refresh"
     }
 
-    return jwt.encode(
+    token = jwt.encode(
         payload,
         settings.SECRET_KEY,
         algorithm=settings.ALGORITHM
     )
 
+    return token
 
-# =====================================================
-# DECODE TOKEN
-# =====================================================
-def decode_token_and_get_user(token: str, db: Session):
+
+def decode_token_and_get_user(token: str, db):
     try:
         payload = jwt.decode(
             token,
@@ -141,7 +148,7 @@ def decode_token_and_get_user(token: str, db: Session):
         if not user_id:
             raise Exception("Invalid token payload")
 
-        user = db.query(User).filter(User.id == int(user_id)).first()
+        user = db.query(User).filter(User.id == user_id).first()
 
         if not user:
             raise Exception("User not found")
@@ -151,5 +158,5 @@ def decode_token_and_get_user(token: str, db: Session):
     except jwt.ExpiredSignatureError:
         raise Exception("Token expired")
 
-    except jwt.JWTError:
+    except jwt.InvalidTokenError:
         raise Exception("Invalid token")

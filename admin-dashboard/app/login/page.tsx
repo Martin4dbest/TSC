@@ -3,11 +3,8 @@
 import { useState } from "react";
 import { login } from "@/lib/auth";
 import { Shield, Lock, User, Eye, EyeOff } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -16,50 +13,43 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-  setError("");
+    setError("");
 
-  if (!email || !password) {
-    setError("Email and password are required");
-    return;
-  }
-
-  try {
-    setLoading(true);
-
-    // ❌ REMOVE THIS (it breaks session sometimes)
-    // localStorage.clear();
-
-    const data = await login(email, password);
-
-    const token = data?.access_token;
-
-    if (!token) {
-      throw new Error("No access token returned from backend");
+    if (!email || !password) {
+      setError("Email and password are required");
+      return;
     }
 
-    // ✅ SAVE TOKEN FIRST
-    localStorage.setItem("token", token);
+    try {
+      setLoading(true);
 
-    // ✅ USE ROLE FROM BACKEND RESPONSE (NOT LOCALSTORAGE, NOT GUESSING)
-    const role = data?.role;
+      const data = await login(email, password);
 
-    if (!role) {
-      console.warn("No role returned from backend, defaulting to user");
+      console.log("LOGIN SUCCESS:", data);
+
+      const token = data?.access_token;
+
+      if (!token) {
+        throw new Error("No access token returned from backend");
+      }
+
+      // Save token only
+      localStorage.setItem("token", token);
+
+      // Temporary role
+      localStorage.setItem("role", "user");
+
+      alert("Login successful");
+
+      // Redirect
+      window.location.href = "/dashboard";
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Login failed");
+    } finally {
+      setLoading(false);
     }
-
-    localStorage.setItem("role", role || "user");
-
-    console.log("LOGIN ROLE:", role);
-
-    router.push("/dashboard");
-
-  } catch (err: any) {
-    console.error(err);
-    setError(err.message || "Login failed");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#020817] text-white px-4">
@@ -93,7 +83,6 @@ export default function LoginPage() {
 
           <div className="flex items-center mt-2 bg-[#020817] border border-white/10 rounded px-3">
             <User size={14} />
-
             <input
               className="flex-1 bg-transparent p-3 outline-none min-w-0"
               value={email}
@@ -122,9 +111,13 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
-              className="shrink-0 ml-2 text-slate-400 hover:text-white"
+              className="shrink-0 ml-2 text-slate-400 hover:text-white cursor-pointer"
             >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              {showPassword ? (
+                <EyeOff size={16} />
+              ) : (
+                <Eye size={16} />
+              )}
             </button>
           </div>
         </div>
