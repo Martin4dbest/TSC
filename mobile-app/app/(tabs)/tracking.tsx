@@ -149,7 +149,7 @@ export default function TrackingScreen() {
           await Location.getCurrentPositionAsync(
             {
               accuracy:
-                Location.Accuracy.High,
+                Location.Accuracy.Highest,
             }
           );
 
