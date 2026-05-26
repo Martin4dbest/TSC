@@ -11,7 +11,11 @@ import {
   ActivityIndicator,
 } from "react-native";
 
-import OSMMap from "../../components/OSMMap";
+import MapView, {
+  Marker,
+  Polyline,
+  PROVIDER_GOOGLE,
+} from "react-native-maps";
 
 import * as Location from "expo-location";
 import { captureRef } from "react-native-view-shot";
@@ -427,94 +431,151 @@ export default function TrackingScreen() {
     };
 
   /* ===========================
-      GET CURRENT LOCATION
-    =========================== */
-    const getLocation =
-      async () => {
-        const loc =
-          await Location.getCurrentPositionAsync(
+     GET CURRENT LOCATION
+  =========================== */
+  const getLocation =
+    async () => {
+      const loc =
+        await Location.getCurrentPositionAsync(
+          {
+            accuracy:
+              Location.Accuracy.Highest,
+          }
+        );
+
+      return {
+        latitude:
+          loc.coords
+            .latitude,
+        longitude:
+          loc.coords
+            .longitude,
+      };
+    };
+
+  /* ===========================
+     SHARE LOCATION
+  =========================== */
+  const shareLocationAndScreenshot =
+    async () => {
+      try {
+        setSendingReport(
+          true
+        );
+
+        const token =
+          await AsyncStorage.getItem(
+            "token"
+          );
+
+        const currentLocation =
+          await getLocation();
+
+        const uri =
+          await captureRef(
+            screenRef.current,
             {
-              accuracy:
-                Location.Accuracy.Highest,
+              format:
+                "jpg",
+              quality:
+                0.8,
             }
           );
 
-        return {
-          latitude:
-            loc.coords
-              .latitude,
-          longitude:
-            loc.coords
-              .longitude,
-        };
-      };
+        const formData =
+          new FormData();
 
-    /* ===========================
-      SHARE LOCATION
-    =========================== */
-  const shareLocationAndScreenshot = async () => {
-    try {
-      setSendingReport(true);
+        formData.append(
+          "user_id",
+          String(
+            user?.id
+          )
+        );
 
-      const token = await AsyncStorage.getItem("token");
+        formData.append(
+          "full_name",
+          user?.full_name ||
+            ""
+        );
 
-      if (!token || !user) {
-        Alert.alert("Error", "User not logged in");
-        return;
+        formData.append(
+          "phone",
+          user?.phone ||
+            "UNKNOWN"
+        );
+
+        formData.append(
+          "email",
+          user?.email ||
+            ""
+        );
+
+        formData.append(
+          "latitude",
+          String(
+            currentLocation.latitude
+          )
+        );
+
+        formData.append(
+          "longitude",
+          String(
+            currentLocation.longitude
+          )
+        );
+
+        formData.append(
+          "address",
+          address
+        );
+
+        formData.append(
+          "screenshot",
+          {
+            uri,
+            name: `tracking_${Date.now()}.jpg`,
+            type: "image/jpeg",
+          } as any
+        );
+
+        await API.post(
+          "/emergency/share-location",
+          formData,
+          {
+            headers:
+              {
+                Authorization: `Bearer ${token}`,
+                "Content-Type":
+                  "multipart/form-data",
+              },
+          }
+        );
+
+        Alert.alert(
+          "Success",
+          "Live location shared successfully."
+        );
+      } catch (
+        err: any
+      ) {
+        console.log(
+          "UPLOAD ERROR:",
+          err
+            ?.response
+            ?.data ||
+            err.message
+        );
+
+        Alert.alert(
+          "Error",
+          "Failed to share location."
+        );
+      } finally {
+        setSendingReport(
+          false
+        );
       }
-
-      const currentLocation = await getLocation();
-
-      const uri = await captureRef(screenRef.current, {
-        format: "jpg",
-        quality: 0.8,
-      });
-
-      const formData = new FormData();
-
-      formData.append("user_id", String(user?.id));
-      formData.append("full_name", String(user?.full_name || ""));
-      formData.append("phone", String(user?.phone || "UNKNOWN"));
-      formData.append("email", String(user?.email || ""));
-      formData.append("latitude", String(currentLocation.latitude));
-      formData.append("longitude", String(currentLocation.longitude));
-      formData.append("address", String(address || "Unknown location"));
-
-      // IMPORTANT: file must be last sometimes in Android builds
-      formData.append("screenshot", {
-        uri,
-        name: `tracking_${Date.now()}.jpg`,
-        type: "image/jpeg",
-      } as any);
-
-      console.log("SENDING FORM DATA:", formData);
-
-      const response = await API.post(
-        "/emergency/share-location",
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      console.log("UPLOAD SUCCESS:", response.data);
-
-      Alert.alert("Success", "Live location shared successfully.");
-    } catch (err: any) {
-      console.log(
-        "UPLOAD ERROR:",
-        err?.response?.data || err.message
-      );
-
-      Alert.alert("Error", "Failed to share location.");
-    } finally {
-      setSendingReport(false);
-    }
-  };
-
+    };
 
   /* ===========================
      LOADING
@@ -559,10 +620,38 @@ export default function TrackingScreen() {
       >
         <StatusBar barStyle="light-content" />
 
-        <OSMMap
-          latitude={location.latitude}
-          longitude={location.longitude}
-        />
+        <MapView
+          ref={mapRef}
+          provider={PROVIDER_GOOGLE}
+          style={
+            styles.map
+          }
+          showsUserLocation
+          initialRegion={{
+            ...location,
+            latitudeDelta:
+              0.01,
+            longitudeDelta:
+              0.01,
+          }}
+        >
+          <Polyline
+            coordinates={
+              routeCoordinates
+            }
+            strokeColor="#00F5B0"
+            strokeWidth={
+              5
+            }
+          />
+
+          <Marker
+            coordinate={
+              location
+            }
+          />
+        </MapView>
+
         <View
           style={
             styles.card

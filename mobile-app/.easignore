@@ -1,9 +1,21 @@
 node_modules
 .git
 .expo
-.expo-shared
-dist
-build
-web-build
-coverage
+npm-debug.log
 *.log
+
+# builds
+*.apk
+*.aab
+
+# media
+*.mp4
+*.mov
+
+# cache
+dist
+web-build
+
+# native folders
+android
+ios

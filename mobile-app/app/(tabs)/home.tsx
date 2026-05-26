@@ -21,11 +21,11 @@ import {
 
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import * as Battery from "expo-battery"; // 🔋 Real Battery API Installed Here
-
-import API from "../../services/api";
+import * as Battery from "expo-battery"; 
 
 const { width } = Dimensions.get("window");
+
+import API from "../../services/api";
 
 export default function HomeDashboard() {
   const router = useRouter();
@@ -41,13 +41,12 @@ export default function HomeDashboard() {
   const [sendingSOS, setSendingSOS] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   
-  // Real battery state and simulated GPS connection status
   const [isTrackingActive, setIsTrackingActive] = useState(false);
   const [batteryLevel, setBatteryLevel] = useState("---%");
   const [signalStatus, setSignalStatus] = useState("Excellent");
 
   /* ======================================
-     LOAD USER & SYSTEM STATUS
+      LOAD USER & SYSTEM STATUS
   ====================================== */
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -57,7 +56,6 @@ export default function HomeDashboard() {
         const parsedUser = JSON.parse(u);
         setUser(parsedUser);
         
-        // Dynamic Key Fix: Scope image retrieval to current user ID
         const savedAvatar = await AsyncStorage.getItem(`avatar_${parsedUser.id}`);
         if (savedAvatar) {
           setAvatar(savedAvatar);
@@ -66,7 +64,6 @@ export default function HomeDashboard() {
         }
       }
       
-      // Simulate checking active tracking status safely
       const checkTracking = Math.random() > 0.5;
       setIsTrackingActive(checkTracking);
     };
@@ -75,19 +72,16 @@ export default function HomeDashboard() {
   }, []);
 
   /* ======================================
-     🔋 REAL BATTERY MONITORING
+      REAL BATTERY MONITORING
   ====================================== */
   useEffect(() => {
     let batterySubscription: Battery.Subscription | null = null;
 
     const setupBatteryLevel = async () => {
       try {
-        // 1. Get initial real-time battery charge
         const level = await Battery.getBatteryLevelAsync();
-        // Level returns as a fraction (e.g., 0.85), convert to formatted string
         setBatteryLevel(Math.round(level * 100) + "%");
 
-        // 2. Add dynamic listener for real-time charge changes
         batterySubscription = Battery.addBatteryLevelListener(({ batteryLevel }) => {
           setBatteryLevel(Math.round(batteryLevel * 100) + "%");
         });
@@ -99,7 +93,6 @@ export default function HomeDashboard() {
 
     setupBatteryLevel();
 
-    // Clean up hardware system event listener on unmount
     return () => {
       if (batterySubscription) {
         batterySubscription.remove();
@@ -108,7 +101,7 @@ export default function HomeDashboard() {
   }, []);
 
   /* ======================================
-     CLOCK
+      CLOCK
   ====================================== */
   useEffect(() => {
     const timer = setInterval(() => {
@@ -119,7 +112,7 @@ export default function HomeDashboard() {
   }, []);
 
   /* ======================================
-     LOGOUT
+      LOGOUT
   ====================================== */
   const logout = async () => {
     await AsyncStorage.clear();
@@ -127,7 +120,7 @@ export default function HomeDashboard() {
   };
 
   /* ======================================
-     PICK IMAGE
+      PICK IMAGE
   ====================================== */
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -151,7 +144,6 @@ export default function HomeDashboard() {
       const imageUri = result.assets[0].uri;
       setAvatar(imageUri);
       
-      // Dynamic Key Fix: Save avatar using user ID key reference
       if (user?.id) {
         await AsyncStorage.setItem(`avatar_${user.id}`, imageUri);
       } else {
@@ -185,7 +177,7 @@ export default function HomeDashboard() {
   };
 
   /* ======================================
-     🚨 REAL GPS FIXED HERE
+      REAL GPS
   ====================================== */
   const getLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -209,7 +201,7 @@ export default function HomeDashboard() {
   };
 
   /* ======================================
-     SOS
+      SOS
   ====================================== */
   const sendSOS = async () => {
     try {
@@ -291,9 +283,6 @@ export default function HomeDashboard() {
     );
   };
 
-  /* ======================================
-     STATUS UTILS
-  ====================================== */
   const getSafetyText = () => {
     switch (status) {
       case "sending":
@@ -324,9 +313,6 @@ export default function HomeDashboard() {
     }
   };
 
-  /* ======================================
-     NAVIGATION
-  ===================================== */
   const goToTracking = () => {
     router.push("/tracking");
   };
@@ -335,368 +321,383 @@ export default function HomeDashboard() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* TOP NOTIFICATION BAR FOR ACTIVE SESSIONS */}
-      {isTrackingActive && (
-        <TouchableOpacity style={styles.activeBanner} onPress={goToTracking}>
-          <MaterialCommunityIcons name="radar" size={18} color="#0b1220" />
-          <Text style={styles.activeBannerText}> Live dynamic routing engine active</Text>
-          <Ionicons name="arrow-forward" size={14} color="#0b1220" style={{ marginLeft: "auto" }} />
-        </TouchableOpacity>
-      )}
-
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        <View style={styles.innerWrapper}>
+          
+          {/* TOP CORE LAYOUT */}
+          <View>
+            {/* HEADER */}
+            <View style={styles.header}>
+              <TouchableOpacity style={styles.iconCircle}>
+                <Ionicons name="menu" size={20} color="#fff" />
+              </TouchableOpacity>
+              <Text style={styles.logo}>TSC🛡️</Text>
 
-        {/* HEADER */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.iconCircle}>
-            <Ionicons name="menu" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.logo}>TSC🛡️</Text>
-
-          <View style={styles.bellWrapper}>
-            <TouchableOpacity style={styles.iconCircle}>
-              <Ionicons name="notifications-outline" size={24} color="#fff" />
-            </TouchableOpacity>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>3</Text>
+              <View style={styles.bellWrapper}>
+                <TouchableOpacity style={styles.iconCircle}>
+                  <Ionicons name="notifications-outline" size={20} color="#fff" />
+                </TouchableOpacity>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>3</Text>
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
 
-        {/* PROFILE BANNER CARDS */}
-        <View style={styles.userRow}>
-          <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
-            <Image
-              source={{
-                uri: avatar && avatar.trim() !== "" ? avatar : "https://randomuser.me/api/portraits/men/32.jpg",
-              }}
-              style={styles.avatar}
-            />
-            <View style={styles.editBadge}>
-              <Ionicons name="camera" size={12} color="#fff" />
-            </View>
-          </TouchableOpacity>
+            {/* PROFILE BANNER CARDS */}
+            <View style={styles.userRow}>
+              <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
+                {avatar && avatar.trim() !== "" ? (
+                  <Image source={{ uri: avatar }} style={styles.avatar} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Ionicons name="cloud-upload-outline" size={16} color="#00e5a8" />
+                    <Text style={styles.avatarPlaceholderText}>Upload Pic</Text>
+                  </View>
+                )}
+                <View style={styles.editBadge}>
+                  <Ionicons name="camera" size={9} color="#fff" />
+                </View>
+              </TouchableOpacity>
 
-          <View style={{ marginLeft: 14 }}>
-            <Text style={styles.greeting}>
-              Welcome,{"\n"}
-              <Text style={{ color: "#00e5a8", fontWeight: "800" }}>
-                {user?.full_name || "User File"}
-              </Text>
-            </Text>
-          </View>
-
-          <View style={styles.timeBox}>
-            <Text style={styles.timeText}>
-              {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-            <Text style={styles.dateText}>
-              {now.toLocaleDateString([], { month: 'short', day: 'numeric' })}
-            </Text>
-          </View>
-        </View>
-
-        {/* PRIMARY HEALTH STATUS CONTAINER */}
-        <View style={[styles.safetyCard, { borderColor: getStatusColor() + "40" }]}>
-          <View style={[styles.shieldCircle, { backgroundColor: getStatusColor() + "15" }]}>
-            <Ionicons name="shield-checkmark" size={28} color={getStatusColor()} />
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text style={styles.cardTitle}>System Status Matrix</Text>
-
-            <Text style={[styles.safeText, { color: getStatusColor() }]}>
-              {getSafetyText()}
-            </Text>
-
-            <Text style={styles.cardSub}>
-              Encrypted satellite link operational
-            </Text>
-
-            {countdown !== null && (
-              <View style={styles.countdownContainer}>
-                <Text style={styles.countdown}>
-                  Dispatching Emergency Responders in: {countdown}s
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={styles.greeting} numberOfLines={2}>
+                  Welcome,{"\n"}
+                  <Text style={{ color: "#00e5a8", fontWeight: "800" }}>
+                    {user?.full_name || "User File"}
+                  </Text>
                 </Text>
               </View>
-            )}
+
+              <View style={styles.timeBox}>
+                <Text style={styles.timeText}>
+                  {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+                <Text style={styles.dateText}>
+                  {now.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                </Text>
+              </View>
+            </View>
+
+            {/* PRIMARY HEALTH STATUS CONTAINER */}
+            <View style={[styles.safetyCard, { borderColor: getStatusColor() + "40" }]}>
+              <View style={[styles.shieldCircle, { backgroundColor: getStatusColor() + "12" }]}>
+                <Ionicons name="shield-checkmark" size={22} color={getStatusColor()} />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>System Status Matrix</Text>
+                <Text style={[styles.safeText, { color: getStatusColor() }]}>
+                  {getSafetyText()}
+                </Text>
+                <Text style={styles.cardSub}>
+                  Satellite encryption active
+                </Text>
+
+                {countdown !== null && (
+                  <View style={styles.countdownContainer}>
+                    <Text style={styles.countdown}>
+                      Dispatching help in: {countdown}s
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* TELEMETRY COMPONENT SHOWING LIVE DATA */}
+            <View style={styles.telemetryCard}>
+              <View style={styles.telemetryItem}>
+                <MaterialCommunityIcons name="battery-high" size={16} color="#00e5a8" />
+                <Text style={styles.telemetryLabel}>Device Batt</Text>
+                <Text style={styles.telemetryValue}>{batteryLevel}</Text>
+              </View>
+              <View style={styles.telemetryDivider} />
+              <View style={styles.telemetryItem}>
+                <MaterialCommunityIcons name="signal-cellular-outline" size={16} color="#3b82f6" />
+                <Text style={styles.telemetryLabel}>GPS Node</Text>
+                <Text style={styles.telemetryValue}>{signalStatus}</Text>
+              </View>
+            </View>
+
+            {/* QUICK ACTIONS INTERACTIVE GRID */}
+            <Text style={styles.sectionTitle}>Command Operations</Text>
+            <View style={styles.quickGrid}>
+              <ModernAction icon="map-marker-radius" label="Live Tracking" description="GPS Stream" color="#00e5a8" onPress={goToTracking} />
+              <ModernAction icon="wallet-outline" label="Secure Wallet" description="Transit Ledger" color="#3b82f6" />
+              <ModernAction icon="shield-car" label="Insurance" description="Coverage Portal" color="#a855f7" />
+              <ModernAction icon="alert-octagon" label="Force Distress" description="Instant Exec" color="#ef4444" onPress={handleSOS} />
+            </View>
           </View>
+
+          {/* LOWER CONTROLS PANEL */}
+          <View style={styles.bottomControls}>
+            {/* HIGH-VISIBILITY ACTION INTERACTIVE SOS TARGET */}
+            <TouchableOpacity style={styles.sosCard} onPress={handleSOS} activeOpacity={0.9}>
+              <View style={styles.sosButton}>
+                <MaterialCommunityIcons name="alarm-light" size={22} color="#fff" />
+              </View>
+
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.sosCardTitle}>CRITICAL EMERGENCY DISTRESS</Text>
+                <Text style={styles.sosCardSub} numberOfLines={1}>
+                  Notify authorities instantly
+                </Text>
+              </View>
+
+              <View style={styles.chevronCircle}>
+                <Ionicons name="chevron-forward" size={14} color="#fff" />
+              </View>
+            </TouchableOpacity>
+
+            {/* ALIGNED RIGHT COMPACT LOGOUT BUTTON */}
+            <View style={styles.logoutWrapper}>
+              <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="logout" size={14} color="#fff" style={{ marginRight: 6 }} />
+                <Text style={styles.logoutText}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
         </View>
-
-        {/* TELEMETRY COMPONENT SHOWING LIVE DATA */}
-        <View style={styles.telemetryCard}>
-          <View style={styles.telemetryItem}>
-            <MaterialCommunityIcons name="battery-high" size={20} color="#00e5a8" />
-            <Text style={styles.telemetryLabel}>Device Batt</Text>
-            <Text style={styles.telemetryValue}>{batteryLevel}</Text>
-          </View>
-          <View style={styles.telemetryDivider} />
-          <View style={styles.telemetryItem}>
-            <MaterialCommunityIcons name="signal-cellular-outline" size={20} color="#3b82f6" />
-            <Text style={styles.telemetryLabel}>GPS Node</Text>
-            <Text style={styles.telemetryValue}>{signalStatus}</Text>
-          </View>
-        </View>
-
-        {/* QUICK ACTIONS INTERACTIVE GRID */}
-        <Text style={styles.sectionTitle}>Command Operations</Text>
-        <View style={styles.quickGrid}>
-          <ModernAction icon="map-marker-radius" label="Live Tracking" description="GPS Stream" color="#00e5a8" onPress={goToTracking} />
-          <ModernAction icon="wallet-outline" label="Secure Wallet" description="Transit Ledger" color="#3b82f6" />
-          <ModernAction icon="shield-car" label="Insurance" description="Coverage Portal" color="#a855f7" />
-          <ModernAction icon="alert-octagon" label="Force Distress" description="Instant Execution" color="#ef4444" onPress={handleSOS} />
-        </View>
-
-        {/* HIGH-VISIBILITY ACTION INTERACTIVE SOS TARGET */}
-        <TouchableOpacity style={styles.sosCard} onPress={handleSOS} activeOpacity={0.9}>
-          <View style={styles.sosButton}>
-            <MaterialCommunityIcons name="alarm-light" size={30} color="#fff" />
-          </View>
-
-          <View style={{ flex: 1, marginLeft: 15 }}>
-            <Text style={styles.sosCardTitle}>CRITICAL EMERGENCY DISTRESS</Text>
-            <Text style={[styles.sosCardSub, { color: "#00C853" }]}>
-              Send emergency alert to authorities
-            </Text>
-          </View>
-
-          <View style={styles.chevronCircle}>
-            <Ionicons name="chevron-forward" size={18} color="#fff" />
-          </View>
-        </TouchableOpacity>
-
-        {/* SYSTEM EXIT SECTION */}
-        <TouchableOpacity style={styles.logout} onPress={logout} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="logout" size={18} color="#9ca3af" style={{ marginRight: 8 }} />
-          <Text style={[styles.logoutText, { color: "#3e2af7" }]}>
-            Log Out
-          </Text>
-        </TouchableOpacity>
-
-        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
 }
 
-/* COMPONENT FOR MODERN ARCHITECTURE ACTION CARDS */
 function ModernAction({ icon, label, description, color, onPress }: any) {
   return (
     <TouchableOpacity style={styles.modernActionBox} onPress={onPress} activeOpacity={0.7}>
       <View style={[styles.actionIconCircle, { backgroundColor: color + "15" }]}>
-        <MaterialCommunityIcons name={icon} size={24} color={color} />
+        <MaterialCommunityIcons name={icon} size={18} color={color} />
       </View>
-      <Text style={styles.modernActionLabel}>{label}</Text>
-      <Text style={styles.modernActionDesc}>{description}</Text>
+      <Text style={styles.modernActionLabel} numberOfLines={1}>{label}</Text>
+      <Text style={styles.modernActionDesc} numberOfLines={1}>{description}</Text>
     </TouchableOpacity>
   );
 }
 
-/* STYLES */
+/* ROBUST DESIGN STYLESHEET MATRIX */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#070c14" },
-  scroll: { paddingBottom: 40 },
-
-  activeBanner: {
-    flexDirection: "row",
-    backgroundColor: "#00e5a8",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    alignItems: "center",
-  },
-  activeBannerText: {
-    color: "#0b1220",
-    fontWeight: "bold",
-    fontSize: 13,
+  scroll: { flexGrow: 1 },
+  innerWrapper: {
+    flex: 1,
+    justifyContent: "space-between",
+    paddingBottom: 24,
   },
 
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
     alignItems: "center",
   },
-  logo: { color: "#00e5a8", fontSize: 22, fontWeight: "900", letterSpacing: 1 },
+  logo: { color: "#00e5a8", fontSize: 18, fontWeight: "900", letterSpacing: 0.5 },
   bellWrapper: { position: "relative" },
   iconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#111a2e",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#1e293b",
   },
   badge: {
     position: "absolute",
-    top: -2,
-    right: -2,
+    top: -1,
+    right: -1,
     backgroundColor: "#ef4444",
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  badgeText: { color: "#fff", fontSize: 8, fontWeight: "bold" },
+
+  userRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    marginVertical: 12,
+  },
+  avatarContainer: { position: "relative" },
+  avatar: { width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, borderColor: "#00e5a8" },
+  avatarPlaceholder: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#111a2e",
+    borderWidth: 1.5,
+    borderColor: "#1e293b",
+    borderStyle: "dashed",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 2,
+  },
+  avatarPlaceholderText: {
+    color: "#64748b",
+    fontSize: 7,
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 2,
+  },
+  editBadge: {
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+    backgroundColor: "#2563eb",
     width: 16,
     height: 16,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
-  },
-  badgeText: { color: "#fff", fontSize: 9, fontWeight: "bold" },
-
-  userRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginVertical: 15,
-  },
-  avatarContainer: { position: "relative" },
-  avatar: { width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: "#1e293b" },
-  editBadge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    backgroundColor: "#2563eb",
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: "#070c14",
   },
-  greeting: { color: "#fff", fontSize: 20, fontWeight: "400", lineHeight: 26 },
+  greeting: { color: "#fff", fontSize: 14, fontWeight: "400", lineHeight: 18 },
   timeBox: { marginLeft: "auto", alignItems: "flex-end" },
-  timeText: { color: "#fff", fontSize: 22, fontWeight: "800" },
-  dateText: { color: "#64748b", fontSize: 13, marginTop: 2, fontWeight: "500" },
+  timeText: { color: "#fff", fontSize: 16, fontWeight: "800" },
+  dateText: { color: "#64748b", fontSize: 11, marginTop: 1, fontWeight: "500" },
 
   safetyCard: {
     flexDirection: "row",
-    marginHorizontal: 20,
-    marginVertical: 10,
-    padding: 16,
-    borderRadius: 20,
+    marginHorizontal: 16,
+    marginVertical: 6,
+    padding: 14,
+    borderRadius: 14,
     backgroundColor: "#111a2e",
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#1e293b",
   },
   shieldCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 14,
+    marginRight: 12,
   },
-  cardTitle: { color: "#64748b", fontSize: 12, fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
-  safeText: { fontSize: 20, fontWeight: "800", marginVertical: 2 },
-  cardSub: { color: "#94a3b8", fontSize: 13 },
+  cardTitle: { color: "#64748b", fontSize: 10, fontWeight: "600", letterSpacing: 0.3, textTransform: "uppercase" },
+  safeText: { fontSize: 16, fontWeight: "800", marginVertical: 1 },
+  cardSub: { color: "#94a3b8", fontSize: 11 },
   countdownContainer: {
-    marginTop: 10,
-    padding: 8,
+    marginTop: 6,
+    padding: 6,
     backgroundColor: "#ef444415",
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: "#ef444430",
   },
-  countdown: { color: "#ef4444", fontWeight: "bold", fontSize: 12, textAlign: "center" },
+  countdown: { color: "#ef4444", fontWeight: "bold", fontSize: 11, textAlign: "center" },
 
   telemetryCard: {
     flexDirection: "row",
-    marginHorizontal: 20,
-    marginVertical: 10,
+    marginHorizontal: 16,
+    marginVertical: 6,
     backgroundColor: "#0f172a",
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 12,
     borderWidth: 1,
     borderColor: "#1e293b",
   },
   telemetryItem: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center" },
-  telemetryLabel: { color: "#64748b", fontSize: 12, marginLeft: 6, marginRight: "auto" },
-  telemetryValue: { color: "#fff", fontSize: 13, fontWeight: "700" },
-  telemetryDivider: { width: 1, backgroundColor: "#1e293b", marginHorizontal: 12 },
+  telemetryLabel: { color: "#64748b", fontSize: 11, marginLeft: 5, marginRight: "auto" },
+  telemetryValue: { color: "#fff", fontSize: 11, fontWeight: "700" },
+  telemetryDivider: { width: 1, backgroundColor: "#1e293b", marginHorizontal: 10 },
 
   sectionTitle: {
     color: "#fff",
-    fontSize: 15,
+    fontSize: 11,
     fontWeight: "700",
-    marginLeft: 22,
-    marginTop: 20,
-    marginBottom: 12,
-    letterSpacing: 0.3,
+    marginLeft: 18,
+    marginTop: 14,
+    marginBottom: 8,
+    letterSpacing: 0.5,
     textTransform: "uppercase",
   },
   quickGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   modernActionBox: {
     backgroundColor: "#111a2e",
-    width: (width - 52) / 2,
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
+    width: (width - 42) / 2,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#1e293b",
   },
   actionIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  modernActionLabel: { color: "#fff", fontSize: 14, fontWeight: "700" },
-  modernActionDesc: { color: "#64748b", fontSize: 11, marginTop: 2 },
+  modernActionLabel: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  modernActionDesc: { color: "#64748b", fontSize: 10, marginTop: 1 },
 
+  bottomControls: {
+    marginTop: 12,
+  },
   sosCard: {
     flexDirection: "row",
     backgroundColor: "#ef444415",
-    marginHorizontal: 20,
-    marginVertical: 15,
-    padding: 16,
-    borderRadius: 20,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 14,
+    borderRadius: 14,
     alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#ef444440",
+    borderWidth: 1,
+    borderColor: "#ef444435",
   },
   sosButton: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "#ef4444",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#ef4444",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  sosCardTitle: { color: "#ef4444", fontWeight: "900", fontSize: 14, letterSpacing: 0.5 },
-  sosCardSub: { color: "#94a3b8", fontSize: 12, marginTop: 2, marginRight: 10 },
+  sosCardTitle: { color: "#ef4444", fontWeight: "800", fontSize: 12, letterSpacing: 0.3 },
+  sosCardSub: { color: "#94a3b8", fontSize: 11, marginTop: 1, marginRight: 10 },
   chevronCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#ef444425",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#ef444420",
     justifyContent: "center",
     alignItems: "center",
     marginLeft: "auto",
   },
 
-  logout: {
+  logoutWrapper: {
     flexDirection: "row",
-    marginHorizontal: 20,
-    marginTop: 15,
-    padding: 16,
-    backgroundColor: "#111a2e",
-    borderRadius: 14,
+    justifyContent: "flex-end",
+    paddingHorizontal: 16,
+  },
+  logoutButton: {
+    flexDirection: "row",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: "#ef4444",
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#1e293b",
+    shadowColor: "#ef4444",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  logoutText: { color: "#94a3b8", textAlign: "center", fontWeight: "600", fontSize: 14 },
+  logoutText: { color: "#fff", fontWeight: "700", fontSize: 11 },
 });
