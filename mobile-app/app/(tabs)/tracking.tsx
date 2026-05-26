@@ -465,37 +465,25 @@ export default function TrackingScreen() {
 
       const currentLocation = await getLocation();
 
-      const uri = await captureRef(screenRef.current, {
-        format: "jpg",
-        quality: 0.8,
-      });
+      const params = new URLSearchParams();
 
-      const formData = new FormData();
+      params.append("user_id", String(user?.id));
+      params.append("full_name", user?.full_name || "");
+      params.append("phone", user?.phone || "UNKNOWN");
+      params.append("email", user?.email || "");
+      params.append("latitude", String(currentLocation.latitude));
+      params.append("longitude", String(currentLocation.longitude));
+      params.append("address", address || "Unknown location");
 
-      formData.append("user_id", String(user?.id));
-      formData.append("full_name", String(user?.full_name || ""));
-      formData.append("phone", String(user?.phone || "UNKNOWN"));
-      formData.append("email", String(user?.email || ""));
-      formData.append("latitude", String(currentLocation.latitude));
-      formData.append("longitude", String(currentLocation.longitude));
-      formData.append("address", String(address || "Unknown location"));
-
-      // IMPORTANT: file must be last sometimes in Android builds
-      formData.append("screenshot", {
-        uri,
-        name: `tracking_${Date.now()}.jpg`,
-        type: "image/jpeg",
-      } as any);
-
-      console.log("SENDING FORM DATA:", formData);
+      console.log("SENDING:", params.toString());
 
       const response = await API.post(
         "/emergency/share-location",
-        formData,
+        params.toString(),
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
+            "Content-Type": "application/x-www-form-urlencoded",
           },
         }
       );
@@ -506,7 +494,7 @@ export default function TrackingScreen() {
     } catch (err: any) {
       console.log(
         "UPLOAD ERROR:",
-        err?.response?.data || err.message
+        JSON.stringify(err?.response?.data, null, 2)
       );
 
       Alert.alert("Error", "Failed to share location.");
@@ -514,7 +502,6 @@ export default function TrackingScreen() {
       setSendingReport(false);
     }
   };
-
 
   /* ===========================
      LOADING
