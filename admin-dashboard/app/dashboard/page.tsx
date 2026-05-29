@@ -30,12 +30,17 @@ export default function Dashboard() {
   const router = useRouter();
 
   const [role, setRole] = useState<"admin" | "superadmin">("admin");
+
   const [darkMode, setDarkMode] = useState(true);
+
   const [status, setStatus] = useState("Checking systems...");
+
   const [loading, setLoading] = useState(true);
 
-  // ========================= STATS =========================
-  // users here now means ONLY MOBILE APP USERS
+  // =====================================================
+  // STATS
+  // USERS = ONLY MOBILE APP USERS (NOT ADMINS)
+  // =====================================================
   const [stats, setStats] = useState({
     users: 0,
     alerts: 0,
@@ -43,19 +48,24 @@ export default function Dashboard() {
     wallet: 0,
   });
 
-  // ========================= ADMIN FORM =========================
+  // =====================================================
+  // ADMIN FORM
+  // =====================================================
   const [adminName, setAdminName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminPhone, setAdminPhone] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
 
-  // ========================= ADMIN COUNT =========================
+  // =====================================================
+  // ADMIN COUNT
+  // =====================================================
   const [adminCount, setAdminCount] = useState(0);
 
-  /* =========================================================
+  /* =====================================================
      ROLE
-  ========================================================= */
+  ===================================================== */
   useEffect(() => {
     const savedRole = localStorage.getItem("role");
 
@@ -64,13 +74,14 @@ export default function Dashboard() {
     }
   }, []);
 
-  /* =========================================================
+  /* =====================================================
      BACKEND STATUS
-  ========================================================= */
+  ===================================================== */
   useEffect(() => {
-    const check = async () => {
+    const checkBackend = async () => {
       try {
         const res = await fetch(`${BASE_URL}/`);
+
         const data = await res.json();
 
         setStatus(data.message || "Online");
@@ -79,20 +90,20 @@ export default function Dashboard() {
       }
     };
 
-    check();
+    checkBackend();
   }, []);
 
-  /* =========================================================
-     FETCH DATA
-     SHOW ONLY MOBILE APP USERS
-     EXCLUDE ADMINS
-  ========================================================= */
+  /* =====================================================
+     FETCH DASHBOARD DATA
+  ===================================================== */
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
 
-        // ================= ADMIN COUNT =================
+        // =================================================
+        // FETCH ADMIN COUNT
+        // =================================================
         let currentAdminCount = 0;
 
         try {
@@ -112,7 +123,9 @@ export default function Dashboard() {
           console.log("ADMIN COUNT ERROR:", err);
         }
 
-        // ================= GENERAL STATS =================
+        // =================================================
+        // FETCH GENERAL STATS
+        // =================================================
         const res = await fetch(
           `${BASE_URL}/api/v1/emergency/stats`
         );
@@ -124,14 +137,11 @@ export default function Dashboard() {
 
         const data = await res.json();
 
-        // =====================================================
-        // TOTAL USERS FROM DATABASE
-        // =====================================================
+        // =================================================
+        // REMOVE ADMINS FROM TOTAL USERS
+        // =================================================
         const totalUsers = data.users ?? 0;
 
-        // =====================================================
-        // REMOVE ADMINS
-        // =====================================================
         const mobileAppUsers =
           totalUsers - currentAdminCount;
 
@@ -151,9 +161,9 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
-  /* =========================================================
+  /* =====================================================
      LOGOUT
-  ========================================================= */
+  ===================================================== */
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
@@ -161,9 +171,9 @@ export default function Dashboard() {
     router.push("/");
   };
 
-  /* =========================================================
+  /* =====================================================
      CREATE ADMIN
-  ========================================================= */
+  ===================================================== */
   const createAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -199,15 +209,16 @@ export default function Dashboard() {
 
       alert("Admin created successfully");
 
-      // Increase admin count
+      // increase admin count
       setAdminCount((prev) => prev + 1);
 
-      // Reduce mobile app users count
+      // reduce mobile users count
       setStats((prev) => ({
         ...prev,
         users: prev.users > 0 ? prev.users - 1 : 0,
       }));
 
+      // reset form
       setAdminName("");
       setAdminEmail("");
       setAdminPassword("");
@@ -218,9 +229,9 @@ export default function Dashboard() {
     }
   };
 
-  /* =========================================================
-     THEMING
-  ========================================================= */
+  /* =====================================================
+     THEME
+  ===================================================== */
   const theme = darkMode
     ? "bg-[#030712] text-slate-100 antialiased"
     : "bg-[#f8fafc] text-slate-900 antialiased";
@@ -234,22 +245,29 @@ export default function Dashboard() {
     : "bg-white border-slate-200 hover:border-blue-500/30 shadow-sm";
 
   return (
-    <div className={`${theme} min-h-screen flex font-sans text-[11px]`}>
-      {/* =====================================================
+    <div
+      className={`${theme} min-h-screen flex font-sans text-[11px]`}
+    >
+      {/* =================================================
           SIDEBAR
-      ===================================================== */}
+      ================================================= */}
       <aside
         className={`w-56 fixed h-screen p-4 border-r flex flex-col justify-between transition-all duration-200 z-10 ${sidebar}`}
       >
         <div>
+          {/* LOGO */}
           <div className="flex items-center gap-2.5 px-1.5 py-2.5 mb-5 border-b border-slate-800/40">
-            <ShieldCheck size={15} className="text-blue-500" />
+            <ShieldCheck
+              size={15}
+              className="text-blue-500"
+            />
 
             <h1 className="font-bold tracking-wider text-[11px] text-slate-200">
               TSC CONTROL
             </h1>
           </div>
 
+          {/* NAVIGATION */}
           <nav className="space-y-0.5">
             <Nav
               icon={<LayoutDashboard size={13} />}
@@ -280,6 +298,7 @@ export default function Dashboard() {
               route="/dashboard/users"
             />
 
+            {/* FINANCE */}
             <p className="text-[9px] font-bold text-slate-500 px-2 pt-4 pb-1 uppercase tracking-widest">
               Finance
             </p>
@@ -298,6 +317,7 @@ export default function Dashboard() {
               route="/dashboard/payments"
             />
 
+            {/* SYSTEM */}
             <p className="text-[9px] font-bold text-slate-500 px-2 pt-4 pb-1 uppercase tracking-widest">
               System
             </p>
@@ -316,6 +336,7 @@ export default function Dashboard() {
               route="/dashboard/logs"
             />
 
+            {/* SUPER ADMIN */}
             {role === "superadmin" && (
               <>
                 <p className="text-[9px] font-bold text-rose-400 px-2 pt-4 pb-1 uppercase tracking-widest">
@@ -338,6 +359,7 @@ export default function Dashboard() {
               </>
             )}
 
+            {/* SETTINGS */}
             <div className="pt-2">
               <Nav
                 icon={<Settings size={13} />}
@@ -349,18 +371,24 @@ export default function Dashboard() {
           </nav>
         </div>
 
-        {/* =====================================================
+        {/* =================================================
             BOTTOM PANEL
-        ===================================================== */}
+        ================================================= */}
         <div className="space-y-1 pt-3 border-t border-slate-800/50">
           <button
             onClick={() => setDarkMode(!darkMode)}
             className="w-full flex items-center gap-2 p-2 rounded hover:bg-slate-800/30 text-[11px] font-medium transition-colors text-slate-400 hover:text-slate-200"
           >
             {darkMode ? (
-              <Sun size={12} className="text-amber-400" />
+              <Sun
+                size={12}
+                className="text-amber-400"
+              />
             ) : (
-              <Moon size={12} className="text-indigo-600" />
+              <Moon
+                size={12}
+                className="text-indigo-600"
+              />
             )}
 
             Theme
@@ -371,18 +399,23 @@ export default function Dashboard() {
             className="w-full flex items-center gap-2 p-2 rounded text-rose-400 hover:bg-rose-500/10 text-[11px] font-medium transition-colors"
           >
             <LogOut size={12} />
+
             Logout
           </button>
         </div>
       </aside>
 
-      {/* =====================================================
-          MAIN VIEWPORT
-      ===================================================== */}
+      {/* =================================================
+          MAIN CONTENT
+      ================================================= */}
       <main className="ml-56 flex-1 p-6 lg:p-8 transition-all duration-200">
+        {/* HEADER */}
         <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-800/30">
           <h1 className="text-xs font-semibold flex items-center gap-2 text-slate-200">
-            <Activity size={14} className="text-blue-500" />
+            <Activity
+              size={14}
+              className="text-blue-500"
+            />
 
             {role === "superadmin"
               ? "System Core Engine"
@@ -394,15 +427,15 @@ export default function Dashboard() {
           </span>
         </div>
 
-        {/* =====================================================
+        {/* =================================================
             STATS
-        ===================================================== */}
+        ================================================= */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Stat
             label="Mobile App Users"
             value={loading ? "..." : stats.users}
-            icon={<Smartphone size={14} />}
             cardStyle={cardStyle}
+            icon={<Smartphone size={14} />}
           />
 
           <Stat
@@ -414,7 +447,9 @@ export default function Dashboard() {
 
           <Stat
             label="Active Emergencies"
-            value={loading ? "..." : stats.activeAlerts}
+            value={
+              loading ? "..." : stats.activeAlerts
+            }
             cardStyle={cardStyle}
           />
 
@@ -425,9 +460,9 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* =====================================================
+        {/* =================================================
             ACTION CARDS
-        ===================================================== */}
+        ================================================= */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card
             title="Live Tracking"
@@ -448,58 +483,88 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* =====================================================
+        {/* =================================================
             SUPER ADMIN PANEL
-        ===================================================== */}
+        ================================================= */}
         {role === "superadmin" && (
           <div className="mt-6 p-5 rounded-lg border border-rose-500/20 bg-rose-500/[0.02]">
-            <h2 className="text-[11px] font-bold uppercase tracking-wider text-rose-400 mb-4">
-              Super Admin Panel
-            </h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-[11px] font-bold uppercase tracking-wider text-rose-400">
+                Super Admin Panel
+              </h2>
 
-            <form onSubmit={createAdmin} className="space-y-3">
+              <div className="text-[10px] text-slate-400">
+                Admins:{" "}
+                <span className="text-rose-400 font-semibold">
+                  {adminCount}
+                </span>
+              </div>
+            </div>
+
+            <form
+              onSubmit={createAdmin}
+              className="space-y-3"
+            >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* NAME */}
                 <input
                   required
                   className="p-2 bg-[#060b13] border border-slate-800 rounded text-xs focus:outline-none focus:border-slate-700 text-slate-300 transition-colors placeholder:text-slate-600"
                   placeholder="Name"
                   value={adminName}
-                  onChange={(e) => setAdminName(e.target.value)}
+                  onChange={(e) =>
+                    setAdminName(e.target.value)
+                  }
                 />
 
+                {/* EMAIL */}
                 <input
                   required
                   type="email"
                   className="p-2 bg-[#060b13] border border-slate-800 rounded text-xs focus:outline-none focus:border-slate-700 text-slate-300 transition-colors placeholder:text-slate-600"
                   placeholder="Email"
                   value={adminEmail}
-                  onChange={(e) => setAdminEmail(e.target.value)}
+                  onChange={(e) =>
+                    setAdminEmail(e.target.value)
+                  }
                 />
 
+                {/* PHONE */}
                 <input
                   required
                   className="p-2 bg-[#060b13] border border-slate-800 rounded text-xs focus:outline-none focus:border-slate-700 text-slate-300 transition-colors placeholder:text-slate-600"
                   placeholder="Phone"
                   value={adminPhone}
-                  onChange={(e) => setAdminPhone(e.target.value)}
+                  onChange={(e) =>
+                    setAdminPhone(e.target.value)
+                  }
                 />
 
+                {/* PASSWORD */}
                 <div className="relative">
                   <input
                     required
                     className="p-2 bg-[#060b13] border border-slate-800 rounded text-xs focus:outline-none focus:border-slate-700 w-full pr-10 text-slate-300 transition-colors placeholder:text-slate-600"
                     placeholder="Password"
-                    type={showPassword ? "text" : "password"}
+                    type={
+                      showPassword
+                        ? "text"
+                        : "password"
+                    }
                     value={adminPassword}
                     onChange={(e) =>
-                      setAdminPassword(e.target.value)
+                      setAdminPassword(
+                        e.target.value
+                      )
                     }
                   />
 
                   <button
                     type="button"
                     onClick={() =>
-                      setShowPassword(!showPassword)
+                      setShowPassword(
+                        !showPassword
+                      )
                     }
                     className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-400"
                   >
@@ -512,6 +577,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* BUTTON */}
               <div className="flex justify-end pt-1">
                 <button
                   type="submit"
@@ -553,7 +619,9 @@ function Nav({
         {icon}
       </div>
 
-      <span className="tracking-wide">{label}</span>
+      <span className="tracking-wide">
+        {label}
+      </span>
     </div>
   );
 }
