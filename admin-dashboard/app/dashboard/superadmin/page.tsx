@@ -204,46 +204,61 @@ export default function SuperAdminDashboard() {
                       No registered users found
                     </div>
                   ) : (
-                    users.map((user: any, index: number) => (
-                      <div
-                        key={index}
-                        className="p-4 hover:bg-slate-800/20 transition-all"
-                      >
-                        <div className="flex items-start gap-3">
+                    users.map((user: any, index: number) => {
+                      // Handle potential differences in database property names for mobile registrations
+                      const computedName =
+                        user.full_name ||
+                        (user.first_name || user.last_name
+                          ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
+                          : "") ||
+                        user.username ||
+                        user.name ||
+                        "Unknown User";
 
-                          <div className="w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 font-black uppercase">
-                            {user.full_name?.charAt(0) || "U"}
-                          </div>
+                      const computedPhone = user.phone || user.phone_number || user.mobile || "No phone";
+                      const computedEmail = user.email || "No email";
 
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-white text-[12px]">
-                                {user.full_name || "Unknown User"}
-                              </h4>
+                      return (
+                        <div
+                          key={index}
+                          className="p-4 hover:bg-slate-800/20 transition-all"
+                        >
+                          <div className="flex items-start gap-3">
 
-                              <span className="text-[8px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 uppercase font-bold">
-                                User
-                              </span>
+                            <div className="w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 font-black uppercase">
+                              {computedName.charAt(0) || "U"}
                             </div>
 
-                            <div className="mt-2 space-y-1.5">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-white text-[12px]">
+                                  {computedName}
+                                </h4>
 
-                              <div className="flex items-center gap-2 text-slate-400">
-                                <Mail size={11} />
-                                <span>{user.email || "No email"}</span>
+                                <span className="text-[8px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 uppercase font-bold">
+                                  User
+                                </span>
                               </div>
 
-                              <div className="flex items-center gap-2 text-slate-400">
-                                <Phone size={11} />
-                                <span>{user.phone || "No phone"}</span>
-                              </div>
+                              <div className="mt-2 space-y-1.5">
 
+                                <div className="flex items-center gap-2 text-slate-400">
+                                  <Mail size={11} />
+                                  <span>{computedEmail}</span>
+                                </div>
+
+                                <div className="flex items-center gap-2 text-slate-400">
+                                  <Phone size={11} />
+                                  <span>{computedPhone}</span>
+                                </div>
+
+                              </div>
                             </div>
-                          </div>
 
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
