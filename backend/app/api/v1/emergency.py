@@ -127,7 +127,7 @@ def trigger_sos(payload: dict, db: Session = Depends(get_db)):
 
 
 # =========================
-# SHARE LOCATION (NO SCREENSHOT)
+# SHARE LOCATION
 # =========================
 @router.post("/share-location")
 async def share_location(
@@ -138,20 +138,33 @@ async def share_location(
     latitude: float = Form(...),
     longitude: float = Form(...),
     address: str = Form(None),
+
+    # ✅ NEW
+    emergency_message: str = Form(""),
+
     db: Session = Depends(get_db)
 ):
     try:
-        final_address = address or safe_address(latitude, longitude)
+        final_address = address or safe_address(
+            latitude,
+            longitude
+        )
 
         alert = EmergencyAlert(
             user_id=user_id,
             full_name=full_name,
-            phone=phone,   # ✅ FIXED
+            phone=phone,
             email=email,
             latitude=latitude,
             longitude=longitude,
             address=final_address,
-            message="📍 Live location shared",
+
+            # ✅ USE USER MESSAGE
+            message=(
+                emergency_message
+                or "📍 Live location shared"
+            ),
+
             status="active",
             created_at=nigeria_time()
         )
@@ -161,56 +174,81 @@ async def share_location(
         db.refresh(alert)
 
         admin_message = f"""
-🚨 LOCATION SHARED
+🚨 EMERGENCY ALERT
 
 User: {full_name}
-Phone: {phone or "N/A"}   # ✅ FIXED DISPLAY
+Phone: {phone or "N/A"}
 Email: {email or "N/A"}
 User ID: {user_id}
 
 Address: {final_address}
 
-Lat: {latitude}
-Lon: {longitude}
+Latitude: {latitude}
+Longitude: {longitude}
+
+Emergency Message:
+{emergency_message or "No message provided"}
 """
 
         try:
             send_email(admin_message)
             send_sms(admin_message)
             send_whatsapp(admin_message)
-        except:
-            pass
+        except Exception as notify_error:
+            print(
+                "NOTIFICATION ERROR:",
+                notify_error
+            )
 
         live_alert = {
             "id": alert.id,
             "user_id": alert.user_id,
             "full_name": alert.full_name,
-            "phone": alert.phone,   # ✅ FIXED
+            "phone": alert.phone,
             "email": alert.email,
             "latitude": alert.latitude,
             "longitude": alert.longitude,
             "address": alert.address,
+
+            # ✅ SEND MESSAGE
             "message": alert.message,
-            "created_at": alert.created_at.isoformat()
+
+            "created_at": (
+                alert.created_at.isoformat()
+            ),
         }
 
+        # =========================
+        # WEBSOCKET PUSH
+        # =========================
         for client in connected_clients[:]:
             try:
-                asyncio.create_task(client.send_json(live_alert))
+                asyncio.create_task(
+                    client.send_json(
+                        live_alert
+                    )
+                )
             except:
-                connected_clients.remove(client)
+                connected_clients.remove(
+                    client
+                )
 
         return {
             "success": True,
             "alert_id": alert.id,
-            "address": final_address
+            "address": final_address,
+            "message": alert.message,
         }
 
     except Exception as e:
         print("ERROR:", e)
-        raise HTTPException(status_code=500, detail="Share location failed")
 
+        raise HTTPException(
+            status_code=500,
+            detail="Share location failed"
+        )
 
+        
 # =========================
 # GET ALL ALERTS
 # =========================

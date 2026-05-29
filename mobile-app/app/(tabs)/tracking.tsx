@@ -2,21 +2,22 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
+ StyleSheet,
   Dimensions,
   TouchableOpacity,
   Alert,
   StatusBar,
   SafeAreaView,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 
 import OSMMap from "../../components/OSMMap";
 
 import * as Location from "expo-location";
-import { captureRef } from "react-native-view-shot";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+
 import {
   ArrowLeft,
   Send,
@@ -60,7 +61,6 @@ export default function TrackingScreen() {
 
   const mapRef = useRef<any>(null);
   const watchRef = useRef<any>(null);
-  const screenRef = useRef<any>(null);
   const timerRef = useRef<any>(null);
 
   const startTime = useRef(Date.now());
@@ -88,6 +88,12 @@ export default function TrackingScreen() {
 
   const [sendingReport, setSendingReport] =
     useState(false);
+
+  /* ===========================
+     EMERGENCY MESSAGE
+  =========================== */
+  const [emergencyText, setEmergencyText] =
+    useState("");
 
   /* ===========================
      LOAD USER
@@ -122,9 +128,7 @@ export default function TrackingScreen() {
       watchRef.current?.remove();
 
       if (timerRef.current) {
-        clearInterval(
-          timerRef.current
-        );
+        clearInterval(timerRef.current);
       }
     };
   }, []);
@@ -135,9 +139,7 @@ export default function TrackingScreen() {
         const { status } =
           await Location.requestForegroundPermissionsAsync();
 
-        if (
-          status !== "granted"
-        ) {
+        if (status !== "granted") {
           Alert.alert(
             "Permission Required",
             "Enable location access to continue."
@@ -146,12 +148,10 @@ export default function TrackingScreen() {
         }
 
         const current =
-          await Location.getCurrentPositionAsync(
-            {
-              accuracy:
-                Location.Accuracy.Highest,
-            }
-          );
+          await Location.getCurrentPositionAsync({
+            accuracy:
+              Location.Accuracy.Highest,
+          });
 
         const coords = {
           latitude:
@@ -161,15 +161,15 @@ export default function TrackingScreen() {
         };
 
         setLocation(coords);
-        setRouteCoordinates([
-          coords,
-        ]);
+        setRouteCoordinates([coords]);
 
-        // quick placeholder first
         setAddress("Location detected");
 
         try {
-          const geo = await Location.reverseGeocodeAsync(coords);
+          const geo =
+            await Location.reverseGeocodeAsync(
+              coords
+            );
 
           if (geo?.[0]) {
             const addr = [
@@ -182,7 +182,9 @@ export default function TrackingScreen() {
               .filter(Boolean)
               .join(", ");
 
-            setAddress(addr || "Location detected");
+            setAddress(
+              addr || "Location detected"
+            );
           }
         } catch (e) {
           console.log("GEOCODE ERROR:", e);
@@ -215,32 +217,22 @@ export default function TrackingScreen() {
           startTime.current;
 
         const sec =
-          Math.floor(
-            diff / 1000
-          ) % 60;
+          Math.floor(diff / 1000) % 60;
 
         const min =
-          Math.floor(
-            diff / 60000
-          ) % 60;
+          Math.floor(diff / 60000) % 60;
 
         const hr =
-          Math.floor(
-            diff / 3600000
-          );
+          Math.floor(diff / 3600000);
 
         setDuration(
           `${String(hr).padStart(
             2,
             "0"
-          )}:${String(
-            min
-          ).padStart(
+          )}:${String(min).padStart(
             2,
             "0"
-          )}:${String(
-            sec
-          ).padStart(
+          )}:${String(sec).padStart(
             2,
             "0"
           )}`
@@ -263,42 +255,30 @@ export default function TrackingScreen() {
               distanceInterval: 3,
             },
             (pos) => {
-              if (
-                !pos?.coords
-              )
-                return;
+              if (!pos?.coords) return;
 
               const coords = {
                 latitude:
-                  pos.coords
-                    .latitude,
+                  pos.coords.latitude,
                 longitude:
-                  pos.coords
-                    .longitude,
+                  pos.coords.longitude,
               };
 
-              setLocation(
-                coords
-              );
+              setLocation(coords);
 
               setRouteCoordinates(
-                (
-                  prev
-                ) => {
-                  const updated =
-                    [
-                      ...prev,
-                      coords,
-                    ];
+                (prev) => {
+                  const updated = [
+                    ...prev,
+                    coords,
+                  ];
 
                   if (
-                    updated.length >
-                    1
+                    updated.length > 1
                   ) {
                     const last =
                       updated[
-                        updated.length -
-                          2
+                        updated.length - 2
                       ];
 
                     const d =
@@ -308,21 +288,14 @@ export default function TrackingScreen() {
                       );
 
                     setDistance(
-                      (
-                        prevD
-                      ) => {
+                      (prevD) => {
                         const current =
-                          parseFloat(
-                            prevD
-                          ) ||
+                          parseFloat(prevD) ||
                           0;
 
                         return `${(
-                          current +
-                          d
-                        ).toFixed(
-                          2
-                        )} km`;
+                          current + d
+                        ).toFixed(2)} km`;
                       }
                     );
                   }
@@ -331,85 +304,48 @@ export default function TrackingScreen() {
                 }
               );
 
-              if (mapRef.current && coords.latitude && coords.longitude) {
-                mapRef.current.animateToRegion({
-                  ...coords,
-                  latitudeDelta: 0.005,
-                  longitudeDelta: 0.005,
-                });
-              }
-                            const speedKmh =
-                pos.coords
-                  .speed !==
-                  null &&
-                pos.coords
-                  .speed !==
-                  undefined
+              const speedKmh =
+                pos.coords.speed !== null &&
+                pos.coords.speed !== undefined
                   ? (
-                      pos.coords
-                        .speed *
-                      3.6
-                    ).toFixed(
-                      0
-                    )
+                      pos.coords.speed * 3.6
+                    ).toFixed(0)
                   : "0";
 
               setSpeed(
                 `${speedKmh} km/h`
               );
 
-              // Safe reverse geocode
               if (
-                Math.random() <
-                0.25
+                Math.random() < 0.25
               ) {
                 Location.reverseGeocodeAsync(
                   coords
                 )
-                  .then(
-                    (
-                      geo
-                    ) => {
-                      if (
-                        geo?.[0]
-                      ) {
-                        const addr =
-                          [
-                            geo[0]
-                              .name,
-                            geo[0]
-                              .street,
-                            geo[0]
-                              .city,
-                            geo[0]
-                              .region,
-                            geo[0]
-                              .country,
-                          ]
-                            .filter(
-                              Boolean
-                            )
-                            .join(
-                              ", "
-                            );
+                  .then((geo) => {
+                    if (geo?.[0]) {
+                      const addr = [
+                        geo[0].name,
+                        geo[0].street,
+                        geo[0].city,
+                        geo[0].region,
+                        geo[0].country,
+                      ]
+                        .filter(Boolean)
+                        .join(", ");
 
-                        setAddress(
-                          addr ||
-                            "Unknown location"
-                        );
-                      }
-                    }
-                  )
-                  .catch(
-                    (
-                      err
-                    ) => {
-                      console.log(
-                        "Reverse geocode error:",
-                        err
+                      setAddress(
+                        addr ||
+                          "Unknown location"
                       );
                     }
-                  );
+                  })
+                  .catch((err) => {
+                    console.log(
+                      "Reverse geocode error:",
+                      err
+                    );
+                  });
               }
             }
           );
@@ -427,102 +363,163 @@ export default function TrackingScreen() {
     };
 
   /* ===========================
-      GET CURRENT LOCATION
-    =========================== */
-    const getLocation =
-      async () => {
-        const loc =
-          await Location.getCurrentPositionAsync(
+     GET CURRENT LOCATION
+  =========================== */
+  const getLocation =
+    async () => {
+      const loc =
+        await Location.getCurrentPositionAsync(
+          {
+            accuracy:
+              Location.Accuracy.Highest,
+          }
+        );
+
+      return {
+        latitude:
+          loc.coords.latitude,
+        longitude:
+          loc.coords.longitude,
+      };
+    };
+
+  /* ===========================
+     SHARE LOCATION
+  =========================== */
+  const shareLocationAndScreenshot =
+    async () => {
+      try {
+        setSendingReport(true);
+
+        const token =
+          await AsyncStorage.getItem(
+            "token"
+          );
+
+        if (!token || !user) {
+          Alert.alert(
+            "Error",
+            "User not logged in"
+          );
+          return;
+        }
+
+        const currentLocation =
+          await getLocation();
+
+        const params =
+          new URLSearchParams();
+
+        params.append(
+          "user_id",
+          String(user?.id)
+        );
+
+        params.append(
+          "full_name",
+          user?.full_name || ""
+        );
+
+        params.append(
+          "phone",
+          user?.phone || "UNKNOWN"
+        );
+
+        params.append(
+          "email",
+          user?.email || ""
+        );
+
+        params.append(
+          "latitude",
+          String(
+            currentLocation.latitude
+          )
+        );
+
+        params.append(
+          "longitude",
+          String(
+            currentLocation.longitude
+          )
+        );
+
+        params.append(
+          "address",
+          address || "Unknown location"
+        );
+
+        /* ===========================
+           EMERGENCY MESSAGE
+        =========================== */
+        params.append(
+          "emergency_message",
+          emergencyText || ""
+        );
+
+        console.log(
+          "SENDING:",
+          params.toString()
+        );
+
+        const response =
+          await API.post(
+            "/emergency/share-location",
+            params.toString(),
             {
-              accuracy:
-                Location.Accuracy.Highest,
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type":
+                  "application/x-www-form-urlencoded",
+              },
             }
           );
 
-        return {
-          latitude:
-            loc.coords
-              .latitude,
-          longitude:
-            loc.coords
-              .longitude,
-        };
-      };
+        console.log(
+          "UPLOAD SUCCESS:",
+          response.data
+        );
 
-    /* ===========================
-      SHARE LOCATION
-    =========================== */
-  const shareLocationAndScreenshot = async () => {
-    try {
-      setSendingReport(true);
+        setEmergencyText("");
 
-      const token = await AsyncStorage.getItem("token");
+        Alert.alert(
+          "Success",
+          "Live location shared successfully."
+        );
+      } catch (err: any) {
+        console.log(
+          "UPLOAD ERROR:",
+          JSON.stringify(
+            err?.response?.data,
+            null,
+            2
+          )
+        );
 
-      if (!token || !user) {
-        Alert.alert("Error", "User not logged in");
-        return;
+        Alert.alert(
+          "Error",
+          "Failed to share location."
+        );
+      } finally {
+        setSendingReport(false);
       }
-
-      const currentLocation = await getLocation();
-
-      const params = new URLSearchParams();
-
-      params.append("user_id", String(user?.id));
-      params.append("full_name", user?.full_name || "");
-      params.append("phone", user?.phone || "UNKNOWN");
-      params.append("email", user?.email || "");
-      params.append("latitude", String(currentLocation.latitude));
-      params.append("longitude", String(currentLocation.longitude));
-      params.append("address", address || "Unknown location");
-
-      console.log("SENDING:", params.toString());
-
-      const response = await API.post(
-        "/emergency/share-location",
-        params.toString(),
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-        }
-      );
-
-      console.log("UPLOAD SUCCESS:", response.data);
-
-      Alert.alert("Success", "Live location shared successfully.");
-    } catch (err: any) {
-      console.log(
-        "UPLOAD ERROR:",
-        JSON.stringify(err?.response?.data, null, 2)
-      );
-
-      Alert.alert("Error", "Failed to share location.");
-    } finally {
-      setSendingReport(false);
-    }
-  };
+    };
 
   /* ===========================
      LOADING
   =========================== */
   if (!location) {
     return (
-      <View
-        style={
-          styles.loading
-        }
-      >
+      <View style={styles.loading}>
         <ActivityIndicator
           size="large"
           color="#00F5B0"
         />
+
         <Text
           style={{
-            color:
-              "#fff",
-            marginTop:
-              12,
+            color: "#fff",
+            marginTop: 12,
           }}
         >
           Initializing GPS...
@@ -532,13 +529,7 @@ export default function TrackingScreen() {
   }
 
   return (
-    <View
-      style={
-        styles.container
-      }
-      ref={screenRef}
-      collapsable={false}
-    >
+    <View style={styles.container}>
       <SafeAreaView
         style={{
           flex: 1,
@@ -550,84 +541,65 @@ export default function TrackingScreen() {
           latitude={location.latitude}
           longitude={location.longitude}
         />
-        <View
-          style={
-            styles.card
-          }
-        >
-          <Text
-            style={
-              styles.title
-            }
-          >
+
+        {/* ===========================
+            STATS CARD
+        =========================== */}
+        <View style={styles.card}>
+          <Text style={styles.title}>
             Live Tracking
           </Text>
 
-          <Text
-            style={
-              styles.text
-            }
-          >
-            Duration:{" "}
-            {
-              duration
-            }
+          <Text style={styles.text}>
+            Duration: {duration}
           </Text>
 
-          <Text
-            style={
-              styles.text
-            }
-          >
-            Distance:{" "}
-            {
-              distance
-            }
+          <Text style={styles.text}>
+            Distance: {distance}
           </Text>
 
-          <Text
-            style={
-              styles.text
-            }
-          >
-            Speed:{" "}
-            {
-              speed
-            }
+          <Text style={styles.text}>
+            Speed: {speed}
           </Text>
         </View>
 
-        <View
-          style={
-            styles.addressCard
-          }
-        >
-          <Text
-            style={
-              styles.addressTitle
-            }
-          >
+        {/* ===========================
+            ADDRESS CARD
+        =========================== */}
+        <View style={styles.addressCard}>
+          <Text style={styles.addressTitle}>
             Current Location
           </Text>
 
-          <Text
-            style={
-              styles.address
-            }
-          >
-            {
-              address
-            }
+          <Text style={styles.address}>
+            {address}
           </Text>
         </View>
 
+        {/* ===========================
+            EMERGENCY MESSAGE
+        =========================== */}
+        <View style={styles.messageCard}>
+          <Text style={styles.messageTitle}>
+            Describe Emergency
+          </Text>
+
+          <TextInput
+            placeholder="Describe what is happening..."
+            placeholderTextColor="#6b7280"
+            multiline
+            value={emergencyText}
+            onChangeText={setEmergencyText}
+            style={styles.messageInput}
+          />
+        </View>
+
+        {/* ===========================
+            SHARE BUTTON
+        =========================== */}
         <TouchableOpacity
-          style={
-            styles.shareBtn
-          }
-          disabled={
-            sendingReport
-          }
+          style={styles.shareBtn}
+          disabled={sendingReport}
           onPress={
             shareLocationAndScreenshot
           }
@@ -637,42 +609,37 @@ export default function TrackingScreen() {
           ) : (
             <>
               <MapPinned
-                size={
-                  18
-                }
+                size={18}
                 color="#fff"
               />
+
               <Text
-                style={
-                  styles.btnText
-                }
+                style={styles.btnText}
               >
                 Share Live Location
               </Text>
+
               <Send
-                size={
-                  16
-                }
+                size={16}
                 color="#fff"
               />
             </>
           )}
         </TouchableOpacity>
 
+        {/* ===========================
+            BACK BUTTON
+        =========================== */}
         <TouchableOpacity
           style={
             styles.redirectArrowBtn
           }
           onPress={() =>
-            router.push(
-              "/(tabs)/home"
-            )
+            router.push("/(tabs)/home")
           }
         >
           <ArrowLeft
-            size={
-              24
-            }
+            size={24}
             color="#00F5B0"
           />
         </TouchableOpacity>
@@ -685,8 +652,7 @@ const styles =
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor:
-        "#07111F",
+      backgroundColor: "#07111F",
     },
 
     map: {
@@ -696,109 +662,105 @@ const styles =
 
     loading: {
       flex: 1,
-      justifyContent:
-        "center",
-      alignItems:
-        "center",
-      backgroundColor:
-        "#07111F",
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "#07111F",
     },
 
     card: {
-      position:
-        "absolute",
+      position: "absolute",
       top: 80,
       left: 20,
       right: 20,
-      backgroundColor:
-        "#0B1624",
+      backgroundColor: "#0B1624",
       padding: 16,
-      borderRadius:
-        16,
+      borderRadius: 16,
     },
 
     title: {
-      color:
-        "#00F5B0",
+      color: "#00F5B0",
       fontSize: 18,
-      fontWeight:
-        "bold",
+      fontWeight: "bold",
     },
 
     text: {
-      color:
-        "#fff",
+      color: "#fff",
       marginTop: 4,
     },
 
     addressCard: {
-      position:
-        "absolute",
-      bottom: 180,
+      position: "absolute",
+      bottom: 300,
       left: 20,
       right: 20,
-      backgroundColor:
-        "#0B1624",
+      backgroundColor: "#0B1624",
       padding: 14,
-      borderRadius:
-        12,
+      borderRadius: 12,
     },
 
     addressTitle: {
-      color:
-        "#fff",
-      fontWeight:
-        "bold",
+      color: "#fff",
+      fontWeight: "bold",
     },
 
     address: {
-      color:
-        "#9ca3af",
+      color: "#9ca3af",
       marginTop: 4,
     },
 
+    /* ===========================
+       MESSAGE CARD
+    =========================== */
+    messageCard: {
+      position: "absolute",
+      bottom: 150,
+      left: 20,
+      right: 20,
+      backgroundColor: "#0B1624",
+      padding: 14,
+      borderRadius: 12,
+    },
+
+    messageTitle: {
+      color: "#fff",
+      fontWeight: "bold",
+      marginBottom: 8,
+    },
+
+    messageInput: {
+      minHeight: 90,
+      color: "#fff",
+      textAlignVertical: "top",
+    },
+
     shareBtn: {
-      position:
-        "absolute",
+      position: "absolute",
       bottom: 80,
       left: 20,
       right: 90,
-      backgroundColor:
-        "#2563eb",
+      backgroundColor: "#2563eb",
       padding: 16,
-      borderRadius:
-        18,
-      flexDirection:
-        "row",
-      justifyContent:
-        "center",
-      alignItems:
-        "center",
+      borderRadius: 18,
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
       gap: 8,
     },
 
     btnText: {
-      color:
-        "#fff",
-      fontWeight:
-        "700",
+      color: "#fff",
+      fontWeight: "700",
     },
 
-    redirectArrowBtn:
-      {
-        position:
-          "absolute",
-        bottom: 80,
-        right: 20,
-        width: 56,
-        height: 56,
-        backgroundColor:
-          "#0B1624",
-        borderRadius:
-          14,
-        justifyContent:
-          "center",
-        alignItems:
-          "center",
-      },
+    redirectArrowBtn: {
+      position: "absolute",
+      bottom: 80,
+      right: 20,
+      width: 56,
+      height: 56,
+      backgroundColor: "#0B1624",
+      borderRadius: 14,
+      justifyContent: "center",
+      alignItems: "center",
+    },
   });
