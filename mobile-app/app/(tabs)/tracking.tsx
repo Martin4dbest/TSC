@@ -1,8 +1,13 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import {
   View,
   Text,
- StyleSheet,
+  StyleSheet,
   Dimensions,
   TouchableOpacity,
   Alert,
@@ -10,6 +15,12 @@ import {
   SafeAreaView,
   ActivityIndicator,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  Animated,
+  ScrollView,
+  TouchableWithoutFeedback,
 } from "react-native";
 
 import OSMMap from "../../components/OSMMap";
@@ -22,54 +33,31 @@ import {
   ArrowLeft,
   Send,
   MapPinned,
+  ShieldAlert,
+  X,
 } from "lucide-react-native";
 
 import API from "../../services/api";
 
-const { width, height } = Dimensions.get("window");
-
-/* ===========================
-   DISTANCE CALCULATOR
-=========================== */
-const getDistance = (p1: any, p2: any) => {
-  const R = 6371;
-
-  const dLat =
-    ((p2.latitude - p1.latitude) * Math.PI) / 180;
-
-  const dLon =
-    ((p2.longitude - p1.longitude) * Math.PI) / 180;
-
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((p1.latitude * Math.PI) / 180) *
-      Math.cos((p2.latitude * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-
-  return (
-    2 *
-    R *
-    Math.atan2(
-      Math.sqrt(a),
-      Math.sqrt(1 - a)
-    )
-  );
-};
+const { width, height } =
+  Dimensions.get("window");
 
 export default function TrackingScreen() {
   const router = useRouter();
 
-  const mapRef = useRef<any>(null);
-  const watchRef = useRef<any>(null);
-  const timerRef = useRef<any>(null);
+  const watchRef = useRef(null);
+  const timerRef = useRef(null);
 
-  const startTime = useRef(Date.now());
+  const slideAnim = useRef(
+    new Animated.Value(0)
+  ).current;
+
+  const startTime = useRef(
+    Date.now()
+  );
 
   const [location, setLocation] =
-    useState<any>(null);
-
-  const [routeCoordinates, setRouteCoordinates] =
-    useState<any[]>([]);
+    useState(null);
 
   const [duration, setDuration] =
     useState("00:00:00");
@@ -84,16 +72,56 @@ export default function TrackingScreen() {
     useState("Getting location...");
 
   const [user, setUser] =
-    useState<any>(null);
+    useState(null);
 
   const [sendingReport, setSendingReport] =
     useState(false);
 
-  /* ===========================
-     EMERGENCY MESSAGE
-  =========================== */
   const [emergencyText, setEmergencyText] =
     useState("");
+
+  const [showPanel, setShowPanel] =
+    useState(true);
+
+  const [keyboardVisible, setKeyboardVisible] =
+    useState(false);
+
+  /* ===========================
+     KEYBOARD EVENTS
+  =========================== */
+  useEffect(() => {
+    const showSub =
+      Keyboard.addListener(
+        "keyboardDidShow",
+        () => {
+          setKeyboardVisible(true);
+        }
+      );
+
+    const hideSub =
+      Keyboard.addListener(
+        "keyboardDidHide",
+        () => {
+          setKeyboardVisible(false);
+        }
+      );
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  /* ===========================
+     PANEL ANIMATION
+  =========================== */
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: showPanel ? 0 : 500,
+      useNativeDriver: true,
+      friction: 8,
+    }).start();
+  }, [showPanel]);
 
   /* ===========================
      LOAD USER
@@ -102,16 +130,15 @@ export default function TrackingScreen() {
     const loadUser = async () => {
       try {
         const u =
-          await AsyncStorage.getItem("user");
+          await AsyncStorage.getItem(
+            "user"
+          );
 
         if (u) {
           setUser(JSON.parse(u));
         }
       } catch (err) {
-        console.log(
-          "USER LOAD ERROR:",
-          err
-        );
+        console.log(err);
       }
     };
 
@@ -128,7 +155,9 @@ export default function TrackingScreen() {
       watchRef.current?.remove();
 
       if (timerRef.current) {
-        clearInterval(timerRef.current);
+        clearInterval(
+          timerRef.current
+        );
       }
     };
   }, []);
@@ -139,19 +168,24 @@ export default function TrackingScreen() {
         const { status } =
           await Location.requestForegroundPermissionsAsync();
 
-        if (status !== "granted") {
+        if (
+          status !== "granted"
+        ) {
           Alert.alert(
             "Permission Required",
-            "Enable location access to continue."
+            "Enable location access."
           );
+
           return;
         }
 
         const current =
-          await Location.getCurrentPositionAsync({
-            accuracy:
-              Location.Accuracy.Highest,
-          });
+          await Location.getCurrentPositionAsync(
+            {
+              accuracy:
+                Location.Accuracy.Highest,
+            }
+          );
 
         const coords = {
           latitude:
@@ -161,9 +195,6 @@ export default function TrackingScreen() {
         };
 
         setLocation(coords);
-        setRouteCoordinates([coords]);
-
-        setAddress("Location detected");
 
         try {
           const geo =
@@ -182,22 +213,14 @@ export default function TrackingScreen() {
               .filter(Boolean)
               .join(", ");
 
-            setAddress(
-              addr || "Location detected"
-            );
+            setAddress(addr);
           }
-        } catch (e) {
-          console.log("GEOCODE ERROR:", e);
-          setAddress("Location detected");
-        }
+        } catch {}
 
         startTimer();
         startLiveTracking();
       } catch (err) {
-        console.log(
-          "INIT ERROR:",
-          err
-        );
+        console.log(err);
 
         Alert.alert(
           "GPS Error",
@@ -217,22 +240,32 @@ export default function TrackingScreen() {
           startTime.current;
 
         const sec =
-          Math.floor(diff / 1000) % 60;
+          Math.floor(
+            diff / 1000
+          ) % 60;
 
         const min =
-          Math.floor(diff / 60000) % 60;
+          Math.floor(
+            diff / 60000
+          ) % 60;
 
         const hr =
-          Math.floor(diff / 3600000);
+          Math.floor(
+            diff / 3600000
+          );
 
         setDuration(
           `${String(hr).padStart(
             2,
             "0"
-          )}:${String(min).padStart(
+          )}:${String(
+            min
+          ).padStart(
             2,
             "0"
-          )}:${String(sec).padStart(
+          )}:${String(
+            sec
+          ).padStart(
             2,
             "0"
           )}`
@@ -255,7 +288,10 @@ export default function TrackingScreen() {
               distanceInterval: 3,
             },
             (pos) => {
-              if (!pos?.coords) return;
+              if (
+                !pos?.coords
+              )
+                return;
 
               const coords = {
                 latitude:
@@ -266,104 +302,26 @@ export default function TrackingScreen() {
 
               setLocation(coords);
 
-              setRouteCoordinates(
-                (prev) => {
-                  const updated = [
-                    ...prev,
-                    coords,
-                  ];
-
-                  if (
-                    updated.length > 1
-                  ) {
-                    const last =
-                      updated[
-                        updated.length - 2
-                      ];
-
-                    const d =
-                      getDistance(
-                        last,
-                        coords
-                      );
-
-                    setDistance(
-                      (prevD) => {
-                        const current =
-                          parseFloat(prevD) ||
-                          0;
-
-                        return `${(
-                          current + d
-                        ).toFixed(2)} km`;
-                      }
-                    );
-                  }
-
-                  return updated;
-                }
-              );
-
               const speedKmh =
-                pos.coords.speed !== null &&
-                pos.coords.speed !== undefined
+                pos.coords.speed
                   ? (
-                      pos.coords.speed * 3.6
+                      pos.coords
+                        .speed * 3.6
                     ).toFixed(0)
                   : "0";
 
               setSpeed(
                 `${speedKmh} km/h`
               );
-
-              if (
-                Math.random() < 0.25
-              ) {
-                Location.reverseGeocodeAsync(
-                  coords
-                )
-                  .then((geo) => {
-                    if (geo?.[0]) {
-                      const addr = [
-                        geo[0].name,
-                        geo[0].street,
-                        geo[0].city,
-                        geo[0].region,
-                        geo[0].country,
-                      ]
-                        .filter(Boolean)
-                        .join(", ");
-
-                      setAddress(
-                        addr ||
-                          "Unknown location"
-                      );
-                    }
-                  })
-                  .catch((err) => {
-                    console.log(
-                      "Reverse geocode error:",
-                      err
-                    );
-                  });
-              }
             }
           );
       } catch (err) {
-        console.log(
-          "TRACKING ERROR:",
-          err
-        );
-
-        Alert.alert(
-          "Tracking Error",
-          "Unable to start live GPS tracking."
-        );
+        console.log(err);
       }
     };
 
   /* ===========================
-     GET CURRENT LOCATION
+     GET LOCATION
   =========================== */
   const getLocation =
     async () => {
@@ -384,9 +342,9 @@ export default function TrackingScreen() {
     };
 
   /* ===========================
-     SHARE LOCATION
+     SHARE REPORT
   =========================== */
-  const shareLocationAndScreenshot =
+  const shareLocationAndReport =
     async () => {
       try {
         setSendingReport(true);
@@ -396,11 +354,15 @@ export default function TrackingScreen() {
             "token"
           );
 
-        if (!token || !user) {
+        if (
+          !token ||
+          !user
+        ) {
           Alert.alert(
             "Error",
             "User not logged in"
           );
+
           return;
         }
 
@@ -422,7 +384,7 @@ export default function TrackingScreen() {
 
         params.append(
           "phone",
-          user?.phone || "UNKNOWN"
+          user?.phone || ""
         );
 
         params.append(
@@ -446,59 +408,42 @@ export default function TrackingScreen() {
 
         params.append(
           "address",
-          address || "Unknown location"
+          address
         );
 
-        /* ===========================
-           EMERGENCY MESSAGE
-        =========================== */
         params.append(
           "emergency_message",
-          emergencyText || ""
+          emergencyText
         );
 
-        console.log(
-          "SENDING:",
-          params.toString()
+        await API.post(
+          "/emergency/share-location",
+          params.toString(),
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type":
+                "application/x-www-form-urlencoded",
+            },
+          }
         );
 
-        const response =
-          await API.post(
-            "/emergency/share-location",
-            params.toString(),
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type":
-                  "application/x-www-form-urlencoded",
-              },
-            }
-          );
-
-        console.log(
-          "UPLOAD SUCCESS:",
-          response.data
-        );
+        Keyboard.dismiss();
 
         setEmergencyText("");
 
         Alert.alert(
-          "Success",
-          "Live location shared successfully."
+          "Emergency Sent",
+          "Location & emergency report shared successfully."
         );
-      } catch (err: any) {
-        console.log(
-          "UPLOAD ERROR:",
-          JSON.stringify(
-            err?.response?.data,
-            null,
-            2
-          )
-        );
+
+        setShowPanel(false);
+      } catch (err) {
+        console.log(err);
 
         Alert.alert(
           "Error",
-          "Failed to share location."
+          "Failed to send emergency report."
         );
       } finally {
         setSendingReport(false);
@@ -510,17 +455,20 @@ export default function TrackingScreen() {
   =========================== */
   if (!location) {
     return (
-      <View style={styles.loading}>
+      <View
+        style={
+          styles.loading
+        }
+      >
         <ActivityIndicator
           size="large"
-          color="#00F5B0"
+          color="#ef4444"
         />
 
         <Text
-          style={{
-            color: "#fff",
-            marginTop: 12,
-          }}
+          style={
+            styles.loadingText
+          }
         >
           Initializing GPS...
         </Text>
@@ -529,122 +477,318 @@ export default function TrackingScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView
-        style={{
-          flex: 1,
-        }}
+    <TouchableWithoutFeedback
+      onPress={() =>
+        Keyboard.dismiss()
+      }
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={
+          Platform.OS === "ios"
+            ? "padding"
+            : "height"
+        }
+        keyboardVerticalOffset={
+          Platform.OS === "ios"
+            ? 40
+            : 0
+        }
       >
-        <StatusBar barStyle="light-content" />
-
-        <OSMMap
-          latitude={location.latitude}
-          longitude={location.longitude}
-        />
-
-        {/* ===========================
-            STATS CARD
-        =========================== */}
-        <View style={styles.card}>
-          <Text style={styles.title}>
-            Live Tracking
-          </Text>
-
-          <Text style={styles.text}>
-            Duration: {duration}
-          </Text>
-
-          <Text style={styles.text}>
-            Distance: {distance}
-          </Text>
-
-          <Text style={styles.text}>
-            Speed: {speed}
-          </Text>
-        </View>
-
-        {/* ===========================
-            ADDRESS CARD
-        =========================== */}
-        <View style={styles.addressCard}>
-          <Text style={styles.addressTitle}>
-            Current Location
-          </Text>
-
-          <Text style={styles.address}>
-            {address}
-          </Text>
-        </View>
-
-        {/* ===========================
-            EMERGENCY MESSAGE
-        =========================== */}
-        <View style={styles.messageCard}>
-          <Text style={styles.messageTitle}>
-            Describe Emergency
-          </Text>
-
-          <TextInput
-            placeholder="Describe what is happening..."
-            placeholderTextColor="#6b7280"
-            multiline
-            value={emergencyText}
-            onChangeText={setEmergencyText}
-            style={styles.messageInput}
-          />
-        </View>
-
-        {/* ===========================
-            SHARE BUTTON
-        =========================== */}
-        <TouchableOpacity
-          style={styles.shareBtn}
-          disabled={sendingReport}
-          onPress={
-            shareLocationAndScreenshot
-          }
-        >
-          {sendingReport ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <MapPinned
-                size={18}
-                color="#fff"
-              />
-
-              <Text
-                style={styles.btnText}
-              >
-                Share Live Location
-              </Text>
-
-              <Send
-                size={16}
-                color="#fff"
-              />
-            </>
-          )}
-        </TouchableOpacity>
-
-        {/* ===========================
-            BACK BUTTON
-        =========================== */}
-        <TouchableOpacity
+        <View
           style={
-            styles.redirectArrowBtn
-          }
-          onPress={() =>
-            router.push("/(tabs)/home")
+            styles.container
           }
         >
-          <ArrowLeft
-            size={24}
-            color="#00F5B0"
-          />
-        </TouchableOpacity>
-      </SafeAreaView>
-    </View>
+          <StatusBar barStyle="light-content" />
+
+          {/* MAP */}
+          <TouchableOpacity
+            activeOpacity={1}
+            style={{ flex: 1 }}
+            onPress={() =>
+              setShowPanel(
+                !showPanel
+              )
+            }
+          >
+            <OSMMap
+              latitude={
+                location.latitude
+              }
+              longitude={
+                location.longitude
+              }
+            />
+          </TouchableOpacity>
+
+          {/* HEADER */}
+          <SafeAreaView
+            style={
+              styles.topContainer
+            }
+          >
+            <View
+              style={
+                styles.headerCard
+              }
+            >
+              <View
+                style={
+                  styles.headerTop
+                }
+              >
+                <ShieldAlert
+                  size={22}
+                  color="#ef4444"
+                />
+
+                <Text
+                  style={
+                    styles.headerTitle
+                  }
+                >
+                  Emergency Tracking
+                </Text>
+              </View>
+
+              <View
+                style={
+                  styles.statsRow
+                }
+              >
+                <View
+                  style={
+                    styles.statCard
+                  }
+                >
+                  <Text
+                    style={
+                      styles.statLabel
+                    }
+                  >
+                    Duration
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.statValue
+                    }
+                  >
+                    {duration}
+                  </Text>
+                </View>
+
+                <View
+                  style={
+                    styles.statCard
+                  }
+                >
+                  <Text
+                    style={
+                      styles.statLabel
+                    }
+                  >
+                    Distance
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.statValue
+                    }
+                  >
+                    {distance}
+                  </Text>
+                </View>
+
+                <View
+                  style={
+                    styles.statCard
+                  }
+                >
+                  <Text
+                    style={
+                      styles.statLabel
+                    }
+                  >
+                    Speed
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.statValue
+                    }
+                  >
+                    {speed}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </SafeAreaView>
+
+          {/* FLOATING PANEL */}
+          <Animated.View
+            style={[
+              styles.panel,
+              {
+                transform: [
+                  {
+                    translateY:
+                      slideAnim,
+                  },
+                ],
+
+                bottom:
+                  keyboardVisible
+                    ? 0
+                    : 0,
+              },
+            ]}
+          >
+            <View
+              style={
+                styles.handle
+              }
+            />
+
+            {/* CLOSE */}
+            <TouchableOpacity
+              style={
+                styles.closeBtn
+              }
+              onPress={() =>
+                setShowPanel(false)
+              }
+            >
+              <X
+                size={20}
+                color="#fff"
+              />
+            </TouchableOpacity>
+
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={
+                false
+              }
+            >
+              {/* LOCATION */}
+              <View
+                style={
+                  styles.locationBox
+                }
+              >
+                <Text
+                  style={
+                    styles.locationTitle
+                  }
+                >
+                  Current Location
+                </Text>
+
+                <Text
+                  style={
+                    styles.locationText
+                  }
+                >
+                  {address}
+                </Text>
+              </View>
+
+              {/* INPUT */}
+              <View
+                style={
+                  styles.messageContainer
+                }
+              >
+                <Text
+                  style={
+                    styles.messageTitle
+                  }
+                >
+                  Emergency Description
+                </Text>
+
+                <TextInput
+                  placeholder="Describe your emergency..."
+                  placeholderTextColor="#94a3b8"
+                  multiline
+                  value={
+                    emergencyText
+                  }
+                  onChangeText={
+                    setEmergencyText
+                  }
+                  style={
+                    styles.messageInput
+                  }
+                  textAlignVertical="top"
+                />
+              </View>
+
+              {/* BUTTONS */}
+              <View
+                style={
+                  styles.buttonRow
+                }
+              >
+                <TouchableOpacity
+                  style={
+                    styles.backBtn
+                  }
+                  onPress={() =>
+                    router.push(
+                      "/(tabs)/home"
+                    )
+                  }
+                >
+                  <ArrowLeft
+                    size={22}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={
+                    styles.shareBtn
+                  }
+                  disabled={
+                    sendingReport
+                  }
+                  onPress={
+                    shareLocationAndReport
+                  }
+                >
+                  {sendingReport ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <MapPinned
+                        size={18}
+                        color="#fff"
+                      />
+
+                      <Text
+                        style={
+                          styles.shareText
+                        }
+                      >
+                        Share Emergency
+                      </Text>
+
+                      <Send
+                        size={18}
+                        color="#fff"
+                      />
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </Animated.View>
+        </View>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -652,115 +796,210 @@ const styles =
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: "#07111F",
-    },
-
-    map: {
-      width,
-      height,
+      backgroundColor:
+        "#020617",
     },
 
     loading: {
       flex: 1,
-      justifyContent: "center",
+      justifyContent:
+        "center",
+      alignItems:
+        "center",
+      backgroundColor:
+        "#020617",
+    },
+
+    loadingText: {
+      color: "#fff",
+      marginTop: 12,
+      fontSize: 16,
+    },
+
+    topContainer: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+    },
+
+    headerCard: {
+      marginTop: 55,
+      marginHorizontal: 16,
+      backgroundColor:
+        "rgba(15,23,42,0.92)",
+      borderRadius: 24,
+      padding: 18,
+      borderWidth: 1,
+      borderColor:
+        "rgba(239,68,68,0.25)",
+    },
+
+    headerTop: {
+      flexDirection: "row",
       alignItems: "center",
-      backgroundColor: "#07111F",
+      gap: 10,
+      marginBottom: 18,
     },
 
-    card: {
-      position: "absolute",
-      top: 80,
-      left: 20,
-      right: 20,
-      backgroundColor: "#0B1624",
-      padding: 16,
-      borderRadius: 16,
-    },
-
-    title: {
-      color: "#00F5B0",
+    headerTitle: {
+      color: "#fff",
       fontSize: 18,
-      fontWeight: "bold",
+      fontWeight: "700",
     },
 
-    text: {
+    statsRow: {
+      flexDirection: "row",
+      justifyContent:
+        "space-between",
+    },
+
+    statCard: {
+      flex: 1,
+      backgroundColor:
+        "#111827",
+      marginHorizontal: 4,
+      borderRadius: 18,
+      paddingVertical: 14,
+      alignItems: "center",
+    },
+
+    statLabel: {
+      color: "#94a3b8",
+      fontSize: 12,
+      marginBottom: 6,
+    },
+
+    statValue: {
       color: "#fff",
-      marginTop: 4,
+      fontSize: 14,
+      fontWeight: "700",
     },
 
-    addressCard: {
+    panel: {
       position: "absolute",
-      bottom: 300,
-      left: 20,
-      right: 20,
-      backgroundColor: "#0B1624",
-      padding: 14,
-      borderRadius: 12,
+      left: 0,
+      right: 0,
+      backgroundColor:
+        "#0f172a",
+      borderTopLeftRadius: 34,
+      borderTopRightRadius: 34,
+      paddingHorizontal: 20,
+      paddingTop: 18,
+      paddingBottom: 30,
+      borderTopWidth: 2,
+      borderTopColor:
+        "rgba(239,68,68,0.4)",
+      maxHeight: height * 0.75,
     },
 
-    addressTitle: {
-      color: "#fff",
-      fontWeight: "bold",
+    handle: {
+      width: 70,
+      height: 6,
+      backgroundColor:
+        "#475569",
+      borderRadius: 20,
+      alignSelf: "center",
+      marginBottom: 18,
     },
 
-    address: {
-      color: "#9ca3af",
-      marginTop: 4,
-    },
-
-    /* ===========================
-       MESSAGE CARD
-    =========================== */
-    messageCard: {
+    closeBtn: {
       position: "absolute",
-      bottom: 150,
-      left: 20,
-      right: 20,
-      backgroundColor: "#0B1624",
-      padding: 14,
-      borderRadius: 12,
+      top: 18,
+      right: 18,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor:
+        "#dc2626",
+      justifyContent:
+        "center",
+      alignItems:
+        "center",
+      zIndex: 99,
+    },
+
+    locationBox: {
+      backgroundColor:
+        "#111827",
+      borderRadius: 20,
+      padding: 16,
+      marginTop: 10,
+    },
+
+    locationTitle: {
+      color: "#ef4444",
+      fontSize: 16,
+      fontWeight: "700",
+      marginBottom: 6,
+    },
+
+    locationText: {
+      color: "#cbd5e1",
+      lineHeight: 22,
+    },
+
+    messageContainer: {
+      marginTop: 18,
     },
 
     messageTitle: {
       color: "#fff",
-      fontWeight: "bold",
-      marginBottom: 8,
+      fontSize: 16,
+      fontWeight: "700",
+      marginBottom: 10,
     },
 
     messageInput: {
-      minHeight: 90,
+      minHeight: 180,
+      backgroundColor:
+        "#111827",
+      borderRadius: 22,
+      padding: 18,
       color: "#fff",
-      textAlignVertical: "top",
+      fontSize: 16,
+      borderWidth: 1,
+      borderColor:
+        "rgba(239,68,68,0.25)",
+    },
+
+    buttonRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 22,
+      marginBottom: 20,
+    },
+
+    backBtn: {
+      width: 58,
+      height: 58,
+      borderRadius: 18,
+      backgroundColor:
+        "#1e293b",
+      justifyContent:
+        "center",
+      alignItems:
+        "center",
+      marginRight: 12,
     },
 
     shareBtn: {
-      position: "absolute",
-      bottom: 80,
-      left: 20,
-      right: 90,
-      backgroundColor: "#2563eb",
-      padding: 16,
+      flex: 1,
+      height: 58,
       borderRadius: 18,
+      backgroundColor:
+        "#dc2626",
+      justifyContent:
+        "center",
+      alignItems:
+        "center",
       flexDirection: "row",
-      justifyContent: "center",
-      alignItems: "center",
-      gap: 8,
+      gap: 10,
     },
 
-    btnText: {
+    shareText: {
       color: "#fff",
       fontWeight: "700",
-    },
-
-    redirectArrowBtn: {
-      position: "absolute",
-      bottom: 80,
-      right: 20,
-      width: 56,
-      height: 56,
-      backgroundColor: "#0B1624",
-      borderRadius: 14,
-      justifyContent: "center",
-      alignItems: "center",
+      fontSize: 15,
     },
   });

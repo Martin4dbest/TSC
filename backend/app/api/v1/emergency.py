@@ -46,6 +46,7 @@ def nigeria_time():
 # SOS ALERT
 # =========================
 
+
 @router.post("/sos")
 def trigger_sos(payload: dict, db: Session = Depends(get_db)):
     try:
@@ -56,33 +57,28 @@ def trigger_sos(payload: dict, db: Session = Depends(get_db)):
         lon = payload.get("longitude")
 
         # Get user from DB
-        user = db.query(User).filter(
-            User.id == user_id
-        ).first()
+        user = db.query(User).filter(User.id == user_id).first()
 
         # Fallbacks
         phone = payload.get("phone") or (user.phone if user else "UNKNOWN")
         email = payload.get("email") or (user.email if user else None)
-        full_name = payload.get("full_name") or (
-            user.full_name if user else "Unknown User"
-        )
+        full_name = payload.get("full_name") or (user.full_name if user else "Unknown User")
 
+        emergency_type = payload.get("emergency_type", "General Emergency")
+        message = payload.get("message", "🚨 Emergency Alert")
+
+        # Save emergency
         sos = EmergencyAlert(
             user_id=user_id,
             full_name=full_name,
-            phone=phone,   # FIXED
+            phone=phone,
             email=email,
             latitude=lat,
             longitude=lon,
             address=safe_address(lat, lon),
-            message=payload.get(
-                "message",
-                "🚨 Emergency Alert"
-            ),
+            message=message,
             status="active",
-            emergency_type=payload.get(
-                "emergency_type"
-            ),
+            emergency_type=emergency_type,
             created_at=nigeria_time()
         )
 
@@ -90,6 +86,51 @@ def trigger_sos(payload: dict, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(sos)
 
+        # =========================
+        # ADMIN MESSAGE (FULL DETAILS)
+        # =========================
+        admin_message = f"""
+🚨 CRITICAL EMERGENCY ALERT
+
+Emergency Unit:
+{emergency_type}
+
+User:
+{full_name}
+
+Phone:
+{phone or "N/A"}
+
+Email:
+{email or "N/A"}
+
+User ID:
+{user_id}
+
+Emergency Message:
+{message}
+
+Location:
+{sos.address}
+
+Latitude:
+{lat}
+
+Longitude:
+{lon}
+"""
+
+        # Send notifications
+        try:
+            send_email(admin_message)
+            send_sms(admin_message)
+            send_whatsapp(admin_message)
+        except Exception as notify_error:
+            print("NOTIFICATION ERROR:", notify_error)
+
+        # =========================
+        # RESPONSE ALERT
+        # =========================
         alert = {
             "id": sos.id,
             "user_id": sos.user_id,
@@ -100,15 +141,15 @@ def trigger_sos(payload: dict, db: Session = Depends(get_db)):
             "longitude": sos.longitude,
             "address": sos.address,
             "message": sos.message,
+            "emergency_type": sos.emergency_type,
             "status": sos.status,
             "created_at": sos.created_at.isoformat()
         }
 
+        # WebSocket push
         for client in connected_clients[:]:
             try:
-                asyncio.create_task(
-                    client.send_json(alert)
-                )
+                asyncio.create_task(client.send_json(alert))
             except:
                 connected_clients.remove(client)
 
@@ -120,12 +161,9 @@ def trigger_sos(payload: dict, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         print("🔥 SOS ERROR:", str(e))
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
-
+        
 # =========================
 # SHARE LOCATION
 # =========================
@@ -248,7 +286,7 @@ Emergency Message:
             detail="Share location failed"
         )
 
-        
+
 # =========================
 # GET ALL ALERTS
 # =========================
