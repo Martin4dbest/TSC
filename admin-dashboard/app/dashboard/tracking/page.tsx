@@ -144,7 +144,7 @@ export default function TrackingPage() {
 
     const interval = setInterval(
       fetchTrackingData,
-      5000
+      60000
     );
 
     return () => clearInterval(interval);
