@@ -62,9 +62,15 @@ export default function UsersPage() {
 
         console.log("RAW USERS RESPONSE:", data);
 
-        const allUsers: User[] = Array.isArray(data)
+        // ✅ SAFE PARSING
+        const rawUsers: User[] = Array.isArray(data)
           ? data
           : data.users || data.data || [];
+
+        // 🔥 ONLY NORMAL USERS (REMOVE ADMINS)
+        const allUsers = rawUsers.filter(
+          (u) => (u.role || "").toLowerCase().trim() === "user"
+        );
 
         setUsers(allUsers);
         setFiltered(allUsers);
@@ -126,7 +132,7 @@ export default function UsersPage() {
         />
       </div>
 
-      {/* ERROR STATE */}
+      {/* ERROR */}
       {error && (
         <div className="flex items-center gap-2 text-rose-400 bg-rose-500/10 border border-rose-500/20 p-3 rounded mb-4 text-xs">
           <AlertTriangle size={14} />
