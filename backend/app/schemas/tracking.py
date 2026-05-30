@@ -26,11 +26,22 @@ class LocationUpdate(BaseModel):
 class TripRead(BaseModel):
     id: int
     user_id: int
-    start_location: str
-    destination: str
+
+    start_location: Optional[str] = None
+    destination: Optional[str] = None
+
     current_latitude: Optional[float] = None
     current_longitude: Optional[float] = None
-    is_active: bool
+
+    status: str
+
+    distance_km: Optional[float] = 0
+    duration_minutes: Optional[float] = 0
+    average_speed: Optional[float] = 0
+
+    safety_score: Optional[int] = 100
+    risk_level: Optional[str] = "SAFE"
+
     started_at: datetime
     ended_at: Optional[datetime] = None
 
