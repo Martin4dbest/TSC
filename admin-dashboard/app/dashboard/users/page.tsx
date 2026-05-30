@@ -10,6 +10,7 @@ import {
   Mail,
   Shield,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 
 const BASE_URL = "https://tsc-backend-nefz.onrender.com";
@@ -29,14 +30,22 @@ export default function UsersPage() {
   const [filtered, setFiltered] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>("");
+  const [error, setError] = useState<string>("");
 
   // FETCH USERS
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
+        setError("");
 
         const token = localStorage.getItem("token");
+
+        if (!token) {
+          setError("Authentication expired. Please login again.");
+          setLoading(false);
+          return;
+        }
 
         const res = await fetch(`${BASE_URL}/api/v1/users/users/`, {
           headers: {
@@ -44,19 +53,24 @@ export default function UsersPage() {
           },
         });
 
+        if (!res.ok) {
+          const msg = await res.text();
+          throw new Error(msg || "Failed to fetch users");
+        }
+
         const data = await res.json();
 
         console.log("RAW USERS RESPONSE:", data);
 
-        // ✅ FIX: robust handling (this is why yours was empty)
         const allUsers: User[] = Array.isArray(data)
           ? data
           : data.users || data.data || [];
 
         setUsers(allUsers);
         setFiltered(allUsers);
-      } catch (err) {
+      } catch (err: any) {
         console.log("USER FETCH ERROR:", err);
+        setError(err.message || "Unable to load users");
       } finally {
         setLoading(false);
       }
@@ -112,11 +126,23 @@ export default function UsersPage() {
         />
       </div>
 
+      {/* ERROR STATE */}
+      {error && (
+        <div className="flex items-center gap-2 text-rose-400 bg-rose-500/10 border border-rose-500/20 p-3 rounded mb-4 text-xs">
+          <AlertTriangle size={14} />
+          {error}
+        </div>
+      )}
+
       {/* CONTENT */}
       {loading ? (
         <div className="flex items-center gap-2 text-slate-400">
           <Loader2 className="animate-spin" size={14} />
           Loading users...
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-slate-500 text-sm">
+          No users found.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
