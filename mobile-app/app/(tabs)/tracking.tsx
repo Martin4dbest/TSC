@@ -74,6 +74,14 @@ export default function TrackingScreen() {
   const [user, setUser] =
     useState(null);
 
+  const [tripId, setTripId] =
+  useState<number | null>(null);
+
+  const [safetyScore, setSafetyScore] = useState(100);
+
+  const [riskLevel, setRiskLevel] = useState("SAFE");
+
+
   const [sendingReport, setSendingReport] =
     useState(false);
 
@@ -152,6 +160,8 @@ export default function TrackingScreen() {
     initializeTracking();
 
     return () => {
+      endTrip();
+
       watchRef.current?.remove();
 
       if (timerRef.current) {
@@ -214,6 +224,8 @@ export default function TrackingScreen() {
               .join(", ");
 
             setAddress(addr);
+
+            await startTrip(addr);
           }
         } catch {}
 
@@ -287,7 +299,7 @@ export default function TrackingScreen() {
               timeInterval: 3000,
               distanceInterval: 3,
             },
-            (pos) => {
+            async (pos) => {
               if (
                 !pos?.coords
               )
@@ -301,6 +313,43 @@ export default function TrackingScreen() {
               };
 
               setLocation(coords);
+
+              if (tripId) {
+                try {
+                  const token =
+                    await AsyncStorage.getItem(
+                      "token"
+                    );
+
+                  const res = await API.put(
+                    `/tracking/${tripId}/location`,
+                    {
+                      latitude: coords.latitude,
+                      longitude: coords.longitude,
+                    },
+                    {
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                      },
+                    }
+                  );
+
+                  console.log(
+                    "LOCATION UPDATE:",
+                    res.data
+                  );
+
+                  setSafetyScore(
+                    res.data.safety_score
+                  );
+
+                  setRiskLevel(
+                    res.data.risk_level
+                  );
+                                  } catch (err) {
+                  console.log(err);
+                }
+              }
 
               const speedKmh =
                 pos.coords.speed
@@ -340,6 +389,77 @@ export default function TrackingScreen() {
           loc.coords.longitude,
       };
     };
+
+  /* ===========================
+   START TRIP
+=========================== */
+const startTrip = async (
+  startAddress: string
+) => {
+  try {
+    const token =
+      await AsyncStorage.getItem(
+        "token"
+      );
+
+    const res = await API.post(
+      "/tracking/start",
+      {
+        start_location: startAddress,
+        destination: "Unknown",
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    console.log(
+      "Trip Started:",
+      res.data
+    );
+
+    setTripId(res.data.id);
+
+  } catch (err) {
+    console.log(
+      "START TRIP ERROR:",
+      err
+    );
+  }
+};
+
+/* ===========================
+   END TRIP
+=========================== */
+const endTrip = async () => {
+  try {
+    if (!tripId) return;
+
+    const token =
+      await AsyncStorage.getItem(
+        "token"
+      );
+
+    await API.put(
+      `/tracking/${tripId}/end`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    Alert.alert(
+      "Trip Ended",
+      "Tracking stopped successfully."
+    );
+  } catch (err) {
+    console.log(err);
+  }
+};
 
   /* ===========================
      SHARE REPORT
@@ -621,6 +741,43 @@ export default function TrackingScreen() {
                   >
                     {speed}
                   </Text>
+
+                  <View
+                    style={{
+                      marginTop: 15,
+                      backgroundColor: "#111827",
+                      borderRadius: 15,
+                      padding: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "#fff",
+                        fontWeight: "700",
+                      }}
+                    >
+                      Safety Score: {safetyScore}
+                    </Text>
+
+                    <Text
+                      style={{
+                        color:
+                          riskLevel === "SAFE"
+                            ? "#22c55e"
+                            : riskLevel === "LOW"
+                            ? "#84cc16"
+                            : riskLevel === "MEDIUM"
+                            ? "#facc15"
+                            : riskLevel === "HIGH"
+                            ? "#f97316"
+                            : "#ef4444",
+                        marginTop: 5,
+                        fontWeight: "700",
+                      }}
+                    >
+                      Risk Level: {riskLevel}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
