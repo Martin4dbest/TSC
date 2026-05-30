@@ -80,10 +80,15 @@ export default function SuperAdminDashboard() {
 
       const adminsData = await adminsRes.json();
 
+      const allUsers = Array.isArray(usersData)
+        ? usersData
+        : usersData.users || usersData.data || [];
+
       setUsers(
-        Array.isArray(usersData)
-          ? usersData
-          : usersData.users || usersData.data || []
+        allUsers.filter(
+          (user: any) =>
+            user.role?.toLowerCase() === "user"
+        )
       );
             setAdmins(Array.isArray(adminsData) ? adminsData : []);
 
