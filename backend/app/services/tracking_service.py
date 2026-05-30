@@ -1,6 +1,9 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
-from app.models.tracking import Trip
+
+from app.models.trip import Trip
+from app.services.safety_engine import calculate_safety_score
+from app.services.emergency_auto import check_auto_emergency
 
 
 # -------------------------------
@@ -22,7 +25,7 @@ def start_trip(db: Session, user_id: int, start_location: str, destination: str)
 
 
 # -------------------------------
-# Update Location
+# Update Location + SAFETY + EMERGENCY
 # -------------------------------
 def update_trip_location(db: Session, trip_id: int, latitude: float, longitude: float):
     trip = db.query(Trip).filter(Trip.id == trip_id).first()
@@ -30,11 +33,37 @@ def update_trip_location(db: Session, trip_id: int, latitude: float, longitude: 
     if not trip:
         raise Exception("Trip not found")
 
+    # update location
     trip.current_latitude = latitude
     trip.current_longitude = longitude
 
+    # duration update
+    trip.duration_minutes = (
+        datetime.utcnow() - trip.started_at
+    ).total_seconds() / 60
+
+    # simple speed calculation
+    if trip.duration_minutes > 0:
+        trip.average_speed = (trip.distance_km / trip.duration_minutes) * 60
+
+    # -------------------------------
+    # SAFETY ENGINE
+    # -------------------------------
+    result = calculate_safety_score(trip)
+    trip.safety_score = result["score"]
+    trip.risk_level = result["risk"]
+
+    # -------------------------------
+    # SAVE FIRST
+    # -------------------------------
     db.commit()
     db.refresh(trip)
+
+    # -------------------------------
+    # AUTO EMERGENCY TRIGGER
+    # -------------------------------
+    check_auto_emergency(db, trip)
+
     return trip
 
 

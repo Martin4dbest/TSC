@@ -65,6 +65,13 @@ class User(Base):
         lazy="select"
     )
 
+
+    trips = relationship(
+    "Trip",
+    back_populates="user",
+    cascade="all, delete-orphan"
+    )
+
     # -----------------------
     # TIMESTAMPS
     # -----------------------

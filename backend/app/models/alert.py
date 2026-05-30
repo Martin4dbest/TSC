@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, ForeignKey, String, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.db.base import Base
+from app.db.base_class import Base
 
 
 class Alert(Base):
@@ -10,7 +10,7 @@ class Alert(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     alert_type = Column(String, default="emergency")
     message = Column(String, nullable=True)
