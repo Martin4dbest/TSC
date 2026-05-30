@@ -62,7 +62,7 @@ export default function SuperAdminDashboard() {
       }
 
       const [usersRes, adminsRes] = await Promise.all([
-        fetch(`${BASE_URL}/api/v1/user`, {
+        fetch(`${BASE_URL}/api/v1/users/users/`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -76,10 +76,16 @@ export default function SuperAdminDashboard() {
       ]);
 
       const usersData = await usersRes.json();
+      console.log("USERS DATA:", usersData);
+
       const adminsData = await adminsRes.json();
 
-      setUsers(Array.isArray(usersData) ? usersData : []);
-      setAdmins(Array.isArray(adminsData) ? adminsData : []);
+      setUsers(
+        Array.isArray(usersData)
+          ? usersData
+          : usersData.users || usersData.data || []
+      );
+            setAdmins(Array.isArray(adminsData) ? adminsData : []);
 
       setShowUsersModal(true);
     } catch (err) {
