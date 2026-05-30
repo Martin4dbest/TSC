@@ -200,7 +200,7 @@ export default function SuperAdminDashboard() {
                   <div className="flex items-center gap-2">
                     <Users size={14} className="text-[#38ef7d]" />
                     <h3 className="font-extrabold tracking-wider uppercase text-[#38ef7d]">
-                      Registered Users
+                      📱 Registered Mobile App Users
                     </h3>
                   </div>
 
