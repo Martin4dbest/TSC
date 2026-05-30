@@ -14,7 +14,6 @@ import {
 
 const BASE_URL = "https://tsc-backend-nefz.onrender.com";
 
-// ✅ FIX: Define user type (removes red squiggles)
 type User = {
   full_name?: string;
   email?: string;
@@ -26,7 +25,6 @@ type User = {
 export default function UsersPage() {
   const router = useRouter();
 
-  // ✅ FIX: typed state (removes TS warnings)
   const [users, setUsers] = useState<User[]>([]);
   const [filtered, setFiltered] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -48,7 +46,12 @@ export default function UsersPage() {
 
         const data = await res.json();
 
-        const allUsers: User[] = data.users || [];
+        console.log("RAW USERS RESPONSE:", data);
+
+        // ✅ FIX: robust handling (this is why yours was empty)
+        const allUsers: User[] = Array.isArray(data)
+          ? data
+          : data.users || data.data || [];
 
         setUsers(allUsers);
         setFiltered(allUsers);
@@ -68,9 +71,9 @@ export default function UsersPage() {
 
     const result = users.filter((u) => {
       return (
-        u.full_name?.toLowerCase().includes(q) ||
-        u.email?.toLowerCase().includes(q) ||
-        u.phone?.toLowerCase().includes(q)
+        u.full_name?.toLowerCase()?.includes(q) ||
+        u.email?.toLowerCase()?.includes(q) ||
+        u.phone?.toLowerCase()?.includes(q)
       );
     });
 
@@ -156,6 +159,7 @@ export default function UsersPage() {
               <div className="mt-2 text-[10px] text-slate-500">
                 Status: {user.is_active ? "Active" : "Inactive"}
               </div>
+
             </div>
           ))}
 
