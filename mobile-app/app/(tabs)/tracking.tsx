@@ -39,11 +39,15 @@ import {
 
 import API from "../../services/api";
 
+
+
 const { width, height } =
   Dimensions.get("window");
 
 export default function TrackingScreen() {
   const router = useRouter();
+
+  const trackingStartedRef = useRef(false);
 
   const watchRef = useRef(null);
   const timerRef = useRef(null);
@@ -55,6 +59,9 @@ export default function TrackingScreen() {
   const startTime = useRef(
     Date.now()
   );
+
+  
+
 
   const [location, setLocation] =
     useState(null);
@@ -76,6 +83,9 @@ export default function TrackingScreen() {
 
   const [tripId, setTripId] =
   useState<number | null>(null);
+  
+
+  
 
   const [safetyScore, setSafetyScore] = useState(100);
 
@@ -160,14 +170,10 @@ export default function TrackingScreen() {
     initializeTracking();
 
     return () => {
-      endTrip();
-
       watchRef.current?.remove();
 
       if (timerRef.current) {
-        clearInterval(
-          timerRef.current
-        );
+        clearInterval(timerRef.current);
       }
     };
   }, []);
@@ -225,7 +231,10 @@ export default function TrackingScreen() {
 
             setAddress(addr);
 
-            await startTrip(addr);
+            if (!trackingStartedRef.current) {
+              trackingStartedRef.current = true;
+              await startTrip(addr);
+            }
           }
         } catch {}
 
@@ -284,6 +293,7 @@ export default function TrackingScreen() {
         );
       }, 1000);
   };
+  
 
   /* ===========================
      LIVE TRACKING
@@ -885,14 +895,11 @@ const endTrip = async () => {
 
               {/* BUTTONS */}
               <View
-                style={
-                  styles.buttonRow
-                }
+                style={styles.buttonRow}
               >
+                {/* BACK BUTTON */}
                 <TouchableOpacity
-                  style={
-                    styles.backBtn
-                  }
+                  style={styles.backBtn}
                   onPress={() =>
                     router.push(
                       "/(tabs)/home"
@@ -905,16 +912,33 @@ const endTrip = async () => {
                   />
                 </TouchableOpacity>
 
+                {/* 🛑 STOP TRIP BUTTON (ADDED) */}
                 <TouchableOpacity
-                  style={
-                    styles.shareBtn
-                  }
-                  disabled={
-                    sendingReport
-                  }
-                  onPress={
-                    shareLocationAndReport
-                  }
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: 18,
+                    backgroundColor: "#ef4444",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                  onPress={endTrip}   // ✅ FIXED (uses your existing function)
+                >
+                  <Text
+                    style={{
+                      color: "#fff",
+                      fontWeight: "700",
+                    }}
+                  >
+                    STOP
+                  </Text>
+                </TouchableOpacity>
+
+                {/* SHARE EMERGENCY */}
+                <TouchableOpacity
+                  style={styles.shareBtn}
+                  disabled={sendingReport}
+                  onPress={shareLocationAndReport}
                 >
                   {sendingReport ? (
                     <ActivityIndicator color="#fff" />
@@ -926,9 +950,7 @@ const endTrip = async () => {
                       />
 
                       <Text
-                        style={
-                          styles.shareText
-                        }
+                        style={styles.shareText}
                       >
                         Share Emergency
                       </Text>
