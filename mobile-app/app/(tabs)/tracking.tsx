@@ -447,10 +447,7 @@ const endTrip = async () => {
   try {
     if (!tripId) return;
 
-    const token =
-      await AsyncStorage.getItem(
-        "token"
-      );
+    const token = await AsyncStorage.getItem("token");
 
     await API.put(
       `/tracking/${tripId}/end`,
@@ -462,12 +459,25 @@ const endTrip = async () => {
       }
     );
 
+    // 🛑 STOP GPS WATCH
+    watchRef.current?.remove();
+
+    // ⏱ STOP TIMER
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
     Alert.alert(
       "Trip Ended",
       "Tracking stopped successfully."
     );
+
+    // 🔁 OPTIONAL: go home
+    router.push("/(tabs)/home");
+
   } catch (err) {
     console.log(err);
+    Alert.alert("Error", "Failed to end trip");
   }
 };
 

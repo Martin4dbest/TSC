@@ -28,146 +28,116 @@ import API from "../../services/api";
 
 const { width } = Dimensions.get("window");
 
+// Custom FormData interfaces preventing generic upload red lines in TypeScript compiling
+type FormDataValue = string | Blob | { uri: string; name: string; type: string };
+
+interface ExtendedFormData extends FormData {
+  append(name: string, value: FormDataValue, fileName?: string): void;
+}
+
 export default function HomeDashboard() {
   const router = useRouter();
 
+  // Primary Theme Switching Control hook
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
   const [user, setUser] = useState<any>(null);
-  const [avatar, setAvatar] =
-    useState<string | null>(null);
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [now, setNow] = useState(new Date());
 
-  const [now, setNow] = useState(
-    new Date()
-  );
+  const [status, setStatus] = useState<
+    "idle" | "preparing" | "sending" | "sent" | "failed"
+  >("idle");
 
-  const [status, setStatus] =
-    useState<
-      | "idle"
-      | "preparing"
-      | "sending"
-      | "sent"
-      | "failed"
-    >("idle");
+  const [sendingSOS, setSendingSOS] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [batteryLevel, setBatteryLevel] = useState("---%");
+  const [signalStatus] = useState("Excellent");
+  const [showEmergencyUnits, setShowEmergencyUnits] = useState(false);
+  const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
 
-  const [sendingSOS, setSendingSOS] =
-    useState(false);
-
-  const [countdown, setCountdown] =
-    useState<number | null>(null);
-
-  const [batteryLevel, setBatteryLevel] =
-    useState("---%");
-
-  const [signalStatus] =
-    useState("Excellent");
-
-  const [showEmergencyUnits,
-    setShowEmergencyUnits] =
-    useState(false);
-
-  const [selectedUnits,
-    setSelectedUnits] =
-    useState<string[]>([]);
-
-  /* ======================================
-      EMERGENCY UNITS
-  ====================================== */
+  // Unified Theme configuration properties mapped seamlessly throughout components
+  const theme = {
+    background: isDarkMode ? "#0f172a" : "#ffffff",
+    cardBg: isDarkMode ? "#1e293b" : "#ffffff",
+    telemetryBg: isDarkMode ? "#1e293b" : "#f8fafc",
+    telemetryBorder: isDarkMode ? "#334155" : "#f1f5f9",
+    border: isDarkMode ? "#334155" : "#e2e8f0",
+    textPrimary: isDarkMode ? "#f8fafc" : "#0f172a",
+    textSecondary: isDarkMode ? "#94a3b8" : "#64748b",
+    iconCircleBg: isDarkMode ? "#1e293b" : "#f8fafc",
+    iconCircleBorder: isDarkMode ? "#334155" : "#f1f5f9",
+    avatarPlaceholderBg: isDarkMode ? "#1e293b" : "#f8fafc",
+    avatarPlaceholderBorder: isDarkMode ? "#334155" : "#e2e8f0",
+    bottomPanelBg: isDarkMode ? "#1e293b" : "#ffffff",
+    logoutButtonBg: isDarkMode ? "#1e293b" : "#f1f5f9",
+    actionBoxBg: isDarkMode ? "#1e293b" : "#ffffff",
+  };
 
   const emergencyUnits = [
-    {
-      id: "police",
-      title: "Police Unit",
-      icon: "shield-account",
-      color: "#3b82f6",
-    },
-    {
-      id: "ambulance",
-      title: "Medical Response",
-      icon: "ambulance",
-      color: "#ef4444",
-    },
-    {
-      id: "fire",
-      title: "Fire Service",
-      icon: "fire-truck",
-      color: "#f97316",
-    },
-    {
-      id: "security",
-      title: "Private Security",
-      icon: "shield-alert",
-      color: "#a855f7",
-    },
+    { id: "police", title: "Police Unit", icon: "shield-account", color: "#2563eb" },
+    { id: "ambulance", title: "Medical Response", icon: "ambulance", color: "#dc2626" },
+    { id: "fire", title: "Fire Service", icon: "fire-truck", color: "#ea580c" },
+    { id: "security", title: "Private Security", icon: "shield-alert", color: "#475569" },
   ];
 
   /* ======================================
-      LOAD USER
+      LOAD USER & THEME PREFERENCE
   ====================================== */
-
   useEffect(() => {
-    const loadDashboardData =
-      async () => {
-        const u =
-          await AsyncStorage.getItem(
-            "user"
-          );
+    const loadDashboardData = async () => {
+      const u = await AsyncStorage.getItem("user");
+      const savedTheme = await AsyncStorage.getItem("theme_preference");
 
-        if (u) {
-          const parsedUser =
-            JSON.parse(u);
+      if (savedTheme) {
+        setIsDarkMode(savedTheme === "dark");
+      }
 
-          setUser(parsedUser);
+      if (u) {
+        const parsedUser = JSON.parse(u);
+        setUser(parsedUser);
 
-          const savedAvatar =
-            await AsyncStorage.getItem(
-              `avatar_${parsedUser.id}`
-            );
+        const savedAvatar = await AsyncStorage.getItem(
+          `avatar_${parsedUser.id}`
+        );
 
-          if (savedAvatar) {
-            setAvatar(savedAvatar);
-          }
+        if (savedAvatar) {
+          setAvatar(savedAvatar);
         }
-      };
+      }
+    };
 
     loadDashboardData();
   }, []);
 
+  // Toggles settings states fluidly between white and dark layouts
+  const toggleTheme = async () => {
+    const nextMode = !isDarkMode;
+    setIsDarkMode(nextMode);
+    await AsyncStorage.setItem("theme_preference", nextMode ? "dark" : "light");
+  };
+
   /* ======================================
       BATTERY
   ====================================== */
-
   useEffect(() => {
-    let batterySubscription:
-      | Battery.Subscription
-      | null = null;
+    let batterySubscription: Battery.Subscription | null = null;
 
-    const setupBatteryLevel =
-      async () => {
-        try {
-          const level =
-            await Battery.getBatteryLevelAsync();
+    const setupBatteryLevel = async () => {
+      try {
+        const level = await Battery.getBatteryLevelAsync();
+        setBatteryLevel(Math.round(level * 100) + "%");
 
-          setBatteryLevel(
-            Math.round(level * 100) +
-              "%"
-          );
-
-          batterySubscription =
-            Battery.addBatteryLevelListener(
-              ({
-                batteryLevel,
-              }) => {
-                setBatteryLevel(
-                  Math.round(
-                    batteryLevel * 100
-                  ) + "%"
-                );
-              }
-            );
-        } catch (error) {
-          console.log(error);
-          setBatteryLevel("ERR");
-        }
-      };
+        batterySubscription = Battery.addBatteryLevelListener(
+          ({ batteryLevel }) => {
+            setBatteryLevel(Math.round(batteryLevel * 100) + "%");
+          }
+        );
+      } catch (error) {
+        console.log(error);
+        setBatteryLevel("ERR");
+      }
+    };
 
     setupBatteryLevel();
 
@@ -181,97 +151,66 @@ export default function HomeDashboard() {
   /* ======================================
       CLOCK
   ====================================== */
-
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(new Date());
     }, 1000);
 
-    return () =>
-      clearInterval(timer);
+    return () => clearInterval(timer);
   }, []);
 
   /* ======================================
       LOGOUT
   ====================================== */
-
   const logout = async () => {
     await AsyncStorage.clear();
-
-    router.replace(
-      "/(auth)/login"
-    );
+    router.replace("/(auth)/login");
   };
 
   /* ======================================
-      PICK IMAGE
+      PICK IMAGE (Guaranteed No Red Lines)
   ====================================== */
-
   const pickImage = async () => {
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
-      Alert.alert(
-        "Permission Required",
-        "Please allow gallery access."
-      );
-
+      Alert.alert("Permission Required", "Please allow gallery access.");
       return;
     }
 
-    const result =
-      await ImagePicker.launchImageLibraryAsync(
-        {
-          mediaTypes:
-            ImagePicker.MediaTypeOptions
-              .Images,
-
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.8,
-        }
-      );
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "images",
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
 
     if (!result.canceled) {
-      const imageUri =
-        result.assets[0].uri;
-
+      const imageUri = result.assets[0].uri;
       setAvatar(imageUri);
 
       if (user?.id) {
-        await AsyncStorage.setItem(
-          `avatar_${user.id}`,
-          imageUri
-        );
+        await AsyncStorage.setItem(`avatar_${user.id}`, imageUri);
       }
 
       try {
-        const token =
-          await AsyncStorage.getItem(
-            "token"
-          );
-
-        const formData =
-          new FormData();
+        const token = await AsyncStorage.getItem("token");
+        
+        // Cast as ExtendedFormData to cleanly handle files inside native JS compilation structures
+        const formData = new FormData() as ExtendedFormData;
 
         formData.append("file", {
           uri: imageUri,
           name: "avatar.jpg",
           type: "image/jpeg",
-        } as any);
+        });
 
-        await API.post(
-          "/user/upload-avatar",
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type":
-                "multipart/form-data",
-            },
-          }
-        );
+        await API.post("/user/upload-avatar", formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        });
       } catch (err) {
         console.log(err);
       }
@@ -281,70 +220,43 @@ export default function HomeDashboard() {
   /* ======================================
       LOCATION
   ====================================== */
-
   const getLocation = async () => {
-    const { status } =
-      await Location.requestForegroundPermissionsAsync();
+    const { status } = await Location.requestForegroundPermissionsAsync();
 
     if (status !== "granted") {
-      Alert.alert(
-        "Permission Required",
-        "Location access is required."
-      );
-
-      throw new Error(
-        "Location denied"
-      );
+      Alert.alert("Permission Required", "Location access is required.");
+      throw new Error("Location denied");
     }
 
-    const location =
-      await Location.getCurrentPositionAsync(
-        {
-          accuracy:
-            Location.Accuracy.High,
-        }
-      );
+    const location = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
 
     return {
-      latitude:
-        location.coords.latitude,
-      longitude:
-        location.coords.longitude,
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
     };
   };
 
   /* ======================================
       NORMAL SOS
   ====================================== */
-
   const sendSOS = async () => {
     try {
       setSendingSOS(true);
       setStatus("sending");
 
-      const token =
-        await AsyncStorage.getItem(
-          "token"
-        );
-
-      const location =
-        await getLocation();
+      const token = await AsyncStorage.getItem("token");
+      const location = await getLocation();
 
       await API.post(
         "/emergency/sos",
         {
           user_id: user?.id,
-          full_name:
-            user?.full_name,
-
-          latitude:
-            location.latitude,
-
-          longitude:
-            location.longitude,
-
-          message:
-            "EMERGENCY ALERT 🚨",
+          full_name: user?.full_name,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          message: "EMERGENCY ALERT 🚨",
         },
         {
           headers: {
@@ -354,26 +266,15 @@ export default function HomeDashboard() {
       );
 
       setStatus("sent");
-
-      Alert.alert(
-        "SOS SENT",
-        "Emergency team notified."
-      );
+      Alert.alert("SOS SENT", "Emergency team notified.");
 
       setTimeout(() => {
         setStatus("idle");
       }, 3000);
-
     } catch (err) {
       console.log(err);
-
       setStatus("failed");
-
-      Alert.alert(
-        "FAILED",
-        "Unable to send SOS."
-      );
-
+      Alert.alert("FAILED", "Unable to send SOS.");
     } finally {
       setSendingSOS(false);
       setCountdown(null);
@@ -381,191 +282,117 @@ export default function HomeDashboard() {
   };
 
   const handleSOS = () => {
-    Alert.alert(
-      "Emergency SOS",
-      "Send emergency alert?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Send",
-          style: "destructive",
-          onPress: () => {
-            setStatus(
-              "preparing"
-            );
+    Alert.alert("Emergency SOS", "Send emergency alert?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Send",
+        style: "destructive",
+        onPress: () => {
+          setStatus("preparing");
+          let count = 3;
+          setCountdown(count);
 
-            let count = 3;
-
+          const interval = setInterval(() => {
+            count -= 1;
             setCountdown(count);
 
-            const interval =
-              setInterval(() => {
-                count -= 1;
-
-                setCountdown(
-                  count
-                );
-
-                if (count <= 0) {
-                  clearInterval(
-                    interval
-                  );
-
-                  sendSOS();
-                }
-              }, 1000);
-          },
+            if (count <= 0) {
+              clearInterval(interval);
+              sendSOS();
+            }
+          }, 1000);
         },
-      ]
-    );
+      },
+    ]);
   };
 
   /* ======================================
       FORCE DISTRESS
   ====================================== */
-
-  const toggleEmergencyUnit = (
-    id: string
-  ) => {
+  const toggleEmergencyUnit = (id: string) => {
     setSelectedUnits((prev) => {
       if (prev.includes(id)) {
-        return prev.filter(
-          (item) =>
-            item !== id
-        );
+        return prev.filter((item) => item !== id);
       }
-
       return [...prev, id];
     });
   };
 
-  const sendDistressAlert =
-    async () => {
-      try {
-        if (
-          selectedUnits.length ===
-          0
-        ) {
-          Alert.alert(
-            "Emergency Unit Required",
-            "Please select at least one emergency unit."
-          );
-
-          return;
-        }
-
-        setSendingSOS(true);
-
-        setStatus("sending");
-
-        const token =
-          await AsyncStorage.getItem(
-            "token"
-          );
-
-        const location =
-          await getLocation();
-
-        await API.post(
-          "/emergency/sos",
-          {
-            user_id: user?.id,
-
-            full_name:
-              user?.full_name,
-
-            phone:
-              user?.phone,
-
-            email:
-              user?.email,
-
-            latitude:
-              location.latitude,
-
-            longitude:
-              location.longitude,
-
-            emergency_units:
-              selectedUnits,
-
-            emergency_type:
-              "CRITICAL DISTRESS",
-
-            message: `🚨 CRITICAL DISTRESS ALERT: 
-
-Emergency Units Requested:
-${selectedUnits.join(", ")}
-
-Immediate assistance required.`,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        setStatus("sent");
-
+  const sendDistressAlert = async () => {
+    try {
+      if (selectedUnits.length === 0) {
         Alert.alert(
-          "DISTRESS ALERT SENT",
-          "Emergency response units notified."
+          "Emergency Unit Required",
+          "Please select at least one emergency unit."
         );
-
-        setShowEmergencyUnits(
-          false
-        );
-
-        setSelectedUnits([]);
-
-        setTimeout(() => {
-          setStatus("idle");
-        }, 3000);
-
-      } catch (err) {
-        console.log(err);
-
-        setStatus("failed");
-
-        Alert.alert(
-          "FAILED",
-          "Unable to send distress alert."
-        );
-
-      } finally {
-        setSendingSOS(false);
+        return;
       }
-    };
 
-  const handleForceDistress =
-    () => {
-      setShowEmergencyUnits(
-        true
+      setSendingSOS(true);
+      setStatus("sending");
+
+      const token = await AsyncStorage.getItem("token");
+      const location = await getLocation();
+
+      await API.post(
+        "/emergency/sos",
+        {
+          user_id: user?.id,
+          full_name: user?.full_name,
+          phone: user?.phone,
+          email: user?.email,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          emergency_units: selectedUnits,
+          emergency_type: "CRITICAL DISTRESS",
+          message: `🚨 CRITICAL DISTRESS ALERT:\n\nEmergency Units Requested:\n${selectedUnits.join(
+            ", "
+          )}\n\nImmediate assistance required.`,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
-    };
+
+      setStatus("sent");
+      Alert.alert("DISTRESS ALERT SENT", "Emergency response units notified.");
+      setShowEmergencyUnits(false);
+      setSelectedUnits([]);
+
+      setTimeout(() => {
+        setStatus("idle");
+      }, 3000);
+    } catch (err) {
+      console.log(err);
+      setStatus("failed");
+      Alert.alert("FAILED", "Unable to send distress alert.");
+    } finally {
+      setSendingSOS(false);
+    }
+  };
+
+  const handleForceDistress = () => {
+    setShowEmergencyUnits(true);
+  };
 
   /* ======================================
-      STATUS
+      STATUS CONFIGURATIONS
   ====================================== */
-
   const getSafetyText = () => {
     switch (status) {
       case "sending":
         return "SENDING ALERT";
-
       case "sent":
         return "ALERT SENT";
-
       case "failed":
         return "SYSTEM ERROR";
-
       case "preparing":
         return "PREPARING SOS";
-
       default:
         return "YOU ARE SECURE";
     }
@@ -574,19 +401,15 @@ Immediate assistance required.`,
   const getStatusColor = () => {
     switch (status) {
       case "sending":
-        return "#ef4444";
-
+        return "#dc2626";
       case "sent":
-        return "#00e5a8";
-
+        return "#16a34a";
       case "failed":
-        return "#f97316";
-
+        return "#ea580c";
       case "preparing":
-        return "#f59e0b";
-
+        return "#d97706";
       default:
-        return "#00e5a8";
+        return "#16a34a";
     }
   };
 
@@ -595,634 +418,285 @@ Immediate assistance required.`,
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar 
+        barStyle={isDarkMode ? "light-content" : "dark-content"} 
+        backgroundColor={theme.background} 
+      />
 
       <ScrollView
-        showsVerticalScrollIndicator={
-          false
-        }
-        contentContainerStyle={
-          styles.scroll
-        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
       >
-        <View
-          style={styles.innerWrapper}
-        >
+        <View style={styles.innerWrapper}>
           <View>
-            {/* HEADER */}
-
+            {/* HEADER SECTION */}
             <View style={styles.header}>
-              <TouchableOpacity
-                style={
-                  styles.iconCircle
-                }
-              >
-                <Ionicons
-                  name="menu"
-                  size={20}
-                  color="#fff"
-                />
+              <TouchableOpacity style={[styles.iconCircle, { backgroundColor: theme.iconCircleBg, borderColor: theme.iconCircleBorder }]}>
+                <Ionicons name="menu" size={20} color={isDarkMode ? "#94a3b8" : "#334155"} />
               </TouchableOpacity>
 
-              <Text style={styles.logo}>
-                TSC🛡️
-              </Text>
+              <Text style={[styles.logo, { color: theme.textPrimary }]}>TSC🛡️</Text>
 
-              <View
-                style={
-                  styles.bellWrapper
-                }
-              >
-                <TouchableOpacity
-                  style={
-                    styles.iconCircle
-                  }
+              <View style={styles.rightHeaderGroup}>
+                {/* ACTIVE TOGGLE BUTTON FOR SHIFTING SYSTEM BACKGROUNDS */}
+                <TouchableOpacity 
+                  onPress={toggleTheme}
+                  style={[styles.iconCircle, { marginRight: 8, backgroundColor: theme.iconCircleBg, borderColor: theme.iconCircleBorder }]}
                 >
-                  <Ionicons
-                    name="notifications-outline"
-                    size={20}
-                    color="#fff"
+                  <Ionicons 
+                    name={isDarkMode ? "sunny" : "moon"} 
+                    size={20} 
+                    color={isDarkMode ? "#f59e0b" : "#334155"} 
                   />
                 </TouchableOpacity>
 
-                <View
-                  style={styles.badge}
-                >
-                  <Text
-                    style={
-                      styles.badgeText
-                    }
-                  >
-                    3
-                  </Text>
+                <View style={styles.bellWrapper}>
+                  <TouchableOpacity style={[styles.iconCircle, { backgroundColor: theme.iconCircleBg, borderColor: theme.iconCircleBorder }]}>
+                    <Ionicons
+                      name="notifications-outline"
+                      size={20}
+                      color={isDarkMode ? "#94a3b8" : "#334155"}
+                    />
+                  </TouchableOpacity>
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>3</Text>
+                  </View>
                 </View>
               </View>
             </View>
 
-            {/* USER */}
-
-            <View style={styles.userRow}>
-              <TouchableOpacity
-                onPress={pickImage}
-                style={
-                  styles.avatarContainer
-                }
-              >
+            {/* USER RECOGNITION PANEL */}
+            <View style={[styles.userRow, { backgroundColor: theme.cardBg }]}>
+              <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
                 {avatar ? (
-                  <Image
-                    source={{
-                      uri: avatar,
-                    }}
-                    style={
-                      styles.avatar
-                    }
-                  />
+                  <Image source={{ uri: avatar }} style={[styles.avatar, { borderColor: isDarkMode ? "#3b82f6" : "#2563eb" }]} />
                 ) : (
-                  <View
-                    style={
-                      styles.avatarPlaceholder
-                    }
-                  >
+                  <View style={[styles.avatarPlaceholder, { backgroundColor: theme.avatarPlaceholderBg, borderColor: theme.avatarPlaceholderBorder }]}>
                     <Ionicons
                       name="cloud-upload-outline"
                       size={16}
-                      color="#00e5a8"
+                      color={isDarkMode ? "#3b82f6" : "#2563eb"}
                     />
-
-                    <Text
-                      style={
-                        styles.avatarPlaceholderText
-                      }
-                    >
-                      Upload Pic
-                    </Text>
+                    <Text style={styles.avatarPlaceholderText}>Upload</Text>
                   </View>
                 )}
 
-                <View
-                  style={
-                    styles.editBadge
-                  }
-                >
-                  <Ionicons
-                    name="camera"
-                    size={9}
-                    color="#fff"
-                  />
+                <View style={[styles.editBadge, { backgroundColor: isDarkMode ? "#3b82f6" : "#2563eb", borderColor: theme.cardBg }]}>
+                  <Ionicons name="camera" size={9} color="#fff" />
                 </View>
               </TouchableOpacity>
 
-              <View
-                style={{
-                  marginLeft: 12,
-                  flex: 1,
-                }}
-              >
-                <Text
-                  style={
-                    styles.greeting
-                  }
-                >
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={[styles.greeting, { color: theme.textSecondary }]}>
                   Welcome,{"\n"}
-
-                  <Text
-                    style={{
-                      color:
-                        "#00e5a8",
-                      fontWeight:
-                        "800",
-                    }}
-                  >
-                    {user?.full_name ||
-                      "User"}
+                  <Text style={{ color: theme.textPrimary, fontWeight: "800" }}>
+                    {user?.full_name || "User"}
                   </Text>
                 </Text>
               </View>
 
-              <View
-                style={styles.timeBox}
-              >
-                <Text
-                  style={
-                    styles.timeText
-                  }
-                >
-                  {now.toLocaleTimeString(
-                    [],
-                    {
-                      hour:
-                        "2-digit",
-                      minute:
-                        "2-digit",
-                    }
-                  )}
+              <View style={styles.timeBox}>
+                <Text style={[styles.timeText, { color: theme.textPrimary }]}>
+                  {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </Text>
-
-                <Text
-                  style={
-                    styles.dateText
-                  }
-                >
-                  {now.toLocaleDateString(
-                    [],
-                    {
-                      month:
-                        "short",
-                      day: "numeric",
-                    }
-                  )}
+                <Text style={[styles.dateText, { color: theme.textSecondary }]}>
+                  {now.toLocaleDateString([], { month: "short", day: "numeric" })}
                 </Text>
               </View>
             </View>
 
-            {/* STATUS */}
-
+            {/* SECURITY SYSTEM MATRIX CARD */}
             <View
               style={[
                 styles.safetyCard,
                 {
-                  borderColor:
-                    getStatusColor() +
-                    "40",
+                  borderColor: getStatusColor() + "30",
+                  backgroundColor: isDarkMode ? theme.cardBg : getStatusColor() + "08",
                 },
               ]}
             >
-              <View
-                style={[
-                  styles.shieldCircle,
-                  {
-                    backgroundColor:
-                      getStatusColor() +
-                      "12",
-                  },
-                ]}
-              >
+              <View style={[styles.shieldCircle, { backgroundColor: getStatusColor() + "15" }]}>
                 <Ionicons
-                  name="shield-checkmark"
+                  name={status === "idle" || status === "sent" ? "shield-checkmark" : "alert-circle"}
                   size={22}
                   color={getStatusColor()}
                 />
               </View>
 
               <View style={{ flex: 1 }}>
-                <Text
-                  style={
-                    styles.cardTitle
-                  }
-                >
-                  System Status Matrix
-                </Text>
-
-                <Text
-                  style={[
-                    styles.safeText,
-                    {
-                      color:
-                        getStatusColor(),
-                    },
-                  ]}
-                >
+                <Text style={[styles.cardTitle, { color: theme.textSecondary }]}>System Status Matrix</Text>
+                <Text style={[styles.safeText, { color: getStatusColor() }]}>
                   {getSafetyText()}
                 </Text>
+                <Text style={[styles.cardSub, { color: theme.textSecondary }]}>Satellite encryption active</Text>
 
-                <Text
-                  style={
-                    styles.cardSub
-                  }
-                >
-                  Satellite encryption
-                  active
-                </Text>
-
-                {countdown !==
-                  null && (
-                  <View
-                    style={
-                      styles.countdownContainer
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.countdown
-                      }
-                    >
-                      Dispatching help
-                      in: {countdown}s
+                {countdown !== null && (
+                  <View style={styles.countdownContainer}>
+                    <Text style={styles.countdown}>
+                      Dispatching help in: {countdown}s
                     </Text>
                   </View>
                 )}
               </View>
             </View>
 
-            {/* TELEMETRY */}
-
-            <View
-              style={
-                styles.telemetryCard
-              }
-            >
-              <View
-                style={
-                  styles.telemetryItem
-                }
-              >
+            {/* TELEMETRY METRICS SECTION */}
+            <View style={[styles.telemetryCard, { backgroundColor: theme.telemetryBg, borderColor: theme.telemetryBorder }]}>
+              <View style={styles.telemetryItem}>
                 <MaterialCommunityIcons
                   name="battery-high"
-                  size={16}
-                  color="#00e5a8"
+                  size={18}
+                  color="#16a34a"
                 />
-
-                <Text
-                  style={
-                    styles.telemetryLabel
-                  }
-                >
-                  Device Batt
-                </Text>
-
-                <Text
-                  style={
-                    styles.telemetryValue
-                  }
-                >
-                  {batteryLevel}
-                </Text>
+                <Text style={[styles.telemetryLabel, { color: theme.textSecondary }]}>Device Batt</Text>
+                <Text style={[styles.telemetryValue, { color: theme.textPrimary }]}>{batteryLevel}</Text>
               </View>
 
-              <View
-                style={
-                  styles.telemetryDivider
-                }
-              />
+              <View style={[styles.telemetryDivider, { backgroundColor: theme.border }]} />
 
-              <View
-                style={
-                  styles.telemetryItem
-                }
-              >
+              <View style={styles.telemetryItem}>
                 <MaterialCommunityIcons
                   name="signal-cellular-outline"
-                  size={16}
-                  color="#3b82f6"
+                  size={18}
+                  color={isDarkMode ? "#3b82f6" : "#2563eb"}
                 />
-
-                <Text
-                  style={
-                    styles.telemetryLabel
-                  }
-                >
-                  GPS Node
-                </Text>
-
-                <Text
-                  style={
-                    styles.telemetryValue
-                  }
-                >
-                  {signalStatus}
-                </Text>
+                <Text style={[styles.telemetryLabel, { color: theme.textSecondary }]}>GPS Node</Text>
+                <Text style={[styles.telemetryValue, { color: theme.textPrimary }]}>{signalStatus}</Text>
               </View>
             </View>
 
-            {/* QUICK ACTIONS */}
+            {/* COMMAND GRIDS LIST */}
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Command Operations</Text>
 
-            <Text
-              style={
-                styles.sectionTitle
-              }
-            >
-              Command Operations
-            </Text>
-
-            <View
-              style={styles.quickGrid}
-            >
+            <View style={styles.quickGrid}>
               <ModernAction
                 icon="map-marker-radius"
                 label="Live Tracking"
                 description="GPS Stream"
-                color="#00e5a8"
-                onPress={
-                  goToTracking
-                }
+                color={isDarkMode ? "#3b82f6" : "#2563eb"}
+                onPress={goToTracking}
+                theme={theme}
               />
-
               <ModernAction
                 icon="wallet-outline"
                 label="Secure Wallet"
                 description="Transit Ledger"
-                color="#3b82f6"
+                color="#475569"
+                theme={theme}
               />
-
               <ModernAction
                 icon="shield-car"
                 label="Insurance"
                 description="Coverage Portal"
-                color="#a855f7"
+                color="#7c3aed"
+                theme={theme}
               />
-
               <ModernAction
                 icon="alert-octagon"
                 label="Force Distress"
                 description="Critical Alert"
-                color="#ef4444"
-                onPress={
-                  handleForceDistress
-                }
+                color="#dc2626"
+                onPress={handleForceDistress}
+                theme={theme}
               />
             </View>
           </View>
 
-          {/* EMERGENCY PANEL */}
-
+          {/* DYNAMIC DISPATCH SHEET PANEL OVERLAY */}
           {showEmergencyUnits && (
-            <View
-              style={
-                styles.emergencyPanel
-              }
-            >
-              <View
-                style={
-                  styles.emergencyHeader
-                }
-              >
+            <View style={[styles.emergencyPanel, { backgroundColor: theme.bottomPanelBg, borderColor: theme.border }]}>
+              <View style={styles.emergencyHeader}>
                 <View>
-                  <Text
-                    style={
-                      styles.emergencyTitle
-                    }
-                  >
-                    Critical Distress
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.emergencySub
-                    }
-                  >
-                    Select emergency
-                    response units
+                  <Text style={[styles.emergencyTitle, { color: theme.textPrimary }]}>Critical Distress</Text>
+                  <Text style={[styles.emergencySub, { color: theme.textSecondary }]}>
+                    Select emergency response units
                   </Text>
                 </View>
 
                 <TouchableOpacity
-                  onPress={() =>
-                    setShowEmergencyUnits(
-                      false
-                    )
-                  }
+                  onPress={() => setShowEmergencyUnits(false)}
+                  style={[styles.closePanelButton, { backgroundColor: isDarkMode ? "#334155" : "#f1f5f9" }]}
                 >
-                  <Ionicons
-                    name="close"
-                    size={22}
-                    color="#fff"
-                  />
+                  <Ionicons name="close" size={20} color={isDarkMode ? "#94a3b8" : "#334155"} />
                 </TouchableOpacity>
               </View>
 
-              <View
-                style={
-                  styles.emergencyGrid
-                }
-              >
-                {emergencyUnits.map(
-                  (item) => {
-                    const selected =
-                      selectedUnits.includes(
-                        item.id
-                      );
+              <View style={styles.emergencyGrid}>
+                {emergencyUnits.map((item) => {
+                  const selected = selectedUnits.includes(item.id);
 
-                    return (
-                      <TouchableOpacity
-                        key={item.id}
-                        activeOpacity={
-                          0.8
-                        }
-                        onPress={() =>
-                          toggleEmergencyUnit(
-                            item.id
-                          )
-                        }
-                        style={[
-                          styles.emergencyUnitCard,
-                          {
-                            borderColor:
-                              selected
-                                ? item.color
-                                : "#1e293b",
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      activeOpacity={0.8}
+                      onPress={() => toggleEmergencyUnit(item.id)}
+                      style={[
+                        styles.emergencyUnitCard,
+                        {
+                          borderColor: selected ? item.color : theme.border,
+                          backgroundColor: selected ? item.color + "10" : theme.actionBoxBg,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.emergencyIconCircle, { backgroundColor: item.color + "15" }]}>
+                        <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
+                      </View>
 
-                            backgroundColor:
-                              selected
-                                ? item.color +
-                                  "20"
-                                : "#111a2e",
-                          },
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.emergencyIconCircle,
-                            {
-                              backgroundColor:
-                                item.color +
-                                "20",
-                            },
-                          ]}
-                        >
-                          <MaterialCommunityIcons
-                            name={
-                              item.icon as any
-                            }
-                            size={24}
-                            color={
-                              item.color
-                            }
-                          />
-                        </View>
+                      <Text style={[styles.emergencyUnitText, { color: theme.textPrimary }]}>{item.title}</Text>
 
-                        <Text
-                          style={
-                            styles.emergencyUnitText
-                          }
-                        >
-                          {item.title}
-                        </Text>
-
-                        {selected && (
-                          <View
-                            style={
-                              styles.selectedDot
-                            }
-                          />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  }
-                )}
+                      {selected && (
+                        <View style={[styles.selectedDot, { backgroundColor: item.color }]} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
               <TouchableOpacity
-                style={
-                  styles.sendDistressBtn
-                }
+                style={styles.sendDistressBtn}
                 activeOpacity={0.9}
                 disabled={sendingSOS}
-                onPress={
-                  sendDistressAlert
-                }
+                onPress={sendDistressAlert}
               >
                 {sendingSOS ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <>
-                    <MaterialCommunityIcons
-                      name="alarm-light"
-                      size={20}
-                      color="#fff"
-                    />
-
-                    <Text
-                      style={
-                        styles.sendDistressText
-                      }
-                    >
-                      Send Critical
-                      Distress
-                    </Text>
+                    <MaterialCommunityIcons name="alarm-light" size={20} color="#fff" />
+                    <Text style={styles.sendDistressText}>Send Critical Distress</Text>
                   </>
                 )}
               </TouchableOpacity>
             </View>
           )}
 
-          {/* LOWER CONTROLS */}
-
-          <View
-            style={
-              styles.bottomControls
-            }
-          >
-            <TouchableOpacity
-              style={styles.sosCard}
-              onPress={handleSOS}
-              activeOpacity={0.9}
-            >
-              <View
-                style={styles.sosButton}
-              >
-                <MaterialCommunityIcons
-                  name="alarm-light"
-                  size={22}
-                  color="#fff"
-                />
+          {/* LOWER FIXED CONTROLS FOOTER */}
+          <View style={styles.bottomControls}>
+            <TouchableOpacity style={styles.sosCard} onPress={handleSOS} activeOpacity={0.9}>
+              <View style={styles.sosButton}>
+                <MaterialCommunityIcons name="alarm-light" size={24} color="#fff" />
               </View>
 
-              <View
-                style={{
-                  flex: 1,
-                  marginLeft: 12,
-                }}
-              >
-                <Text
-                  style={
-                    styles.sosCardTitle
-                  }
-                >
-                  CRITICAL EMERGENCY
-                  DISTRESS
-                </Text>
-
-                <Text
-                  style={
-                    styles.sosCardSub
-                  }
-                >
-                  Notify authorities
-                  instantly
-                </Text>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.sosCardTitle}>CRITICAL EMERGENCY DISTRESS</Text>
+                <Text style={styles.sosCardSub}>Notify authorities instantly</Text>
               </View>
 
-              <View
-                style={
-                  styles.chevronCircle
-                }
-              >
-                <Ionicons
-                  name="chevron-forward"
-                  size={14}
-                  color="#fff"
-                />
+              <View style={[styles.chevronCircle, { backgroundColor: theme.cardBg, borderColor: isDarkMode ? "#7f1d1d" : "#fee2e2" }]}>
+                <Ionicons name="chevron-forward" size={14} color="#dc2626" />
               </View>
             </TouchableOpacity>
 
-            <View
-              style={
-                styles.logoutWrapper
-              }
-            >
-              <TouchableOpacity
-                style={
-                  styles.logoutButton
-                }
-                onPress={logout}
-              >
+            <View style={styles.logoutWrapper}>
+              <TouchableOpacity style={[styles.logoutButton, { backgroundColor: theme.logoutButtonBg }]} onPress={logout}>
                 <MaterialCommunityIcons
                   name="logout"
                   size={14}
-                  color="#fff"
-                  style={{
-                    marginRight: 6,
-                  }}
+                  color={theme.textSecondary}
+                  style={{ marginRight: 6 }}
                 />
-
-                <Text
-                  style={
-                    styles.logoutText
-                  }
-                >
-                  Log Out
-                </Text>
+                <Text style={[styles.logoutText, { color: theme.textSecondary }]}>Log Out</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1232,52 +706,19 @@ Immediate assistance required.`,
   );
 }
 
-function ModernAction({
-  icon,
-  label,
-  description,
-  color,
-  onPress,
-}: any) {
+function ModernAction({ icon, label, description, color, onPress, theme }: any) {
   return (
     <TouchableOpacity
-      style={
-        styles.modernActionBox
-      }
+      style={[styles.modernActionBox, { backgroundColor: theme.actionBoxBg, borderColor: theme.border }]}
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <View
-        style={[
-          styles.actionIconCircle,
-          {
-            backgroundColor:
-              color + "15",
-          },
-        ]}
-      >
-        <MaterialCommunityIcons
-          name={icon as any}
-          size={18}
-          color={color}
-        />
+      <View style={[styles.actionIconCircle, { backgroundColor: color + "12" }]}>
+        <MaterialCommunityIcons name={icon as any} size={20} color={color} />
       </View>
 
-      <Text
-        style={
-          styles.modernActionLabel
-        }
-      >
-        {label}
-      </Text>
-
-      <Text
-        style={
-          styles.modernActionDesc
-        }
-      >
-        {description}
-      </Text>
+      <Text style={[styles.modernActionLabel, { color: theme.textPrimary }]}>{label}</Text>
+      <Text style={[styles.modernActionDesc, { color: theme.textSecondary }]}>{description}</Text>
     </TouchableOpacity>
   );
 }
@@ -1285,419 +726,360 @@ function ModernAction({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#070c14",
   },
-
   scroll: {
     flexGrow: 1,
   },
-
   innerWrapper: {
     flex: 1,
-    justifyContent:
-      "space-between",
+    justifyContent: "space-between",
     paddingBottom: 24,
   },
-
   header: {
     flexDirection: "row",
-    justifyContent:
-      "space-between",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
     alignItems: "center",
   },
-
+  rightHeaderGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   logo: {
-    color: "#00e5a8",
     fontSize: 18,
     fontWeight: "900",
+    letterSpacing: 0.5,
   },
-
   bellWrapper: {
     position: "relative",
   },
-
   iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#111a2e",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#1e293b",
-  },
-
-  badge: {
-    position: "absolute",
-    top: -1,
-    right: -1,
-    backgroundColor: "#ef4444",
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  badgeText: {
-    color: "#fff",
-    fontSize: 8,
-    fontWeight: "bold",
-  },
-
-  userRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    marginVertical: 12,
-  },
-
-  avatarContainer: {
-    position: "relative",
-  },
-
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 1.5,
-    borderColor: "#00e5a8",
-  },
-
-  avatarPlaceholder: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#111a2e",
-    borderWidth: 1.5,
-    borderColor: "#1e293b",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  avatarPlaceholderText: {
-    color: "#64748b",
-    fontSize: 7,
-    marginTop: 2,
-  },
-
-  editBadge: {
-    position: "absolute",
-    bottom: -1,
-    right: -1,
-    backgroundColor: "#2563eb",
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  greeting: {
-    color: "#fff",
-    fontSize: 14,
-    lineHeight: 18,
-  },
-
-  timeBox: {
-    marginLeft: "auto",
-    alignItems: "flex-end",
-  },
-
-  timeText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "800",
-  },
-
-  dateText: {
-    color: "#64748b",
-    fontSize: 11,
-  },
-
-  safetyCard: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    marginVertical: 6,
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: "#111a2e",
-    alignItems: "center",
-    borderWidth: 1,
-  },
-
-  shieldCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    borderWidth: 1,
   },
-
-  cardTitle: {
+  badge: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    backgroundColor: "#ef4444",
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#ffffff",
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 8,
+    fontWeight: "bold",
+  },
+  userRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    marginVertical: 16,
+  },
+  avatarContainer: {
+    position: "relative",
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1.5,
+  },
+  avatarPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarPlaceholderText: {
     color: "#64748b",
-    fontSize: 10,
+    fontSize: 8,
+    marginTop: 2,
   },
-
-  safeText: {
+  editBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+  },
+  greeting: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  timeBox: {
+    marginLeft: "auto",
+    alignItems: "flex-end",
+  },
+  timeText: {
     fontSize: 16,
     fontWeight: "800",
-    marginVertical: 1,
   },
-
-  cardSub: {
-    color: "#94a3b8",
+  dateText: {
     fontSize: 11,
+    marginTop: 2,
   },
-
+  safetyCard: {
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginVertical: 8,
+    padding: 16,
+    borderRadius: 16,
+    alignItems: "center",
+    borderWidth: 1,
+  },
+  shieldCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  cardTitle: {
+    fontSize: 11,
+    fontWeight: "500",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  safeText: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginVertical: 2,
+  },
+  cardSub: {
+    fontSize: 12,
+  },
   countdownContainer: {
     marginTop: 6,
   },
-
   countdown: {
-    color: "#ef4444",
+    color: "#dc2626",
     fontWeight: "bold",
-    fontSize: 11,
+    fontSize: 12,
   },
-
   telemetryCard: {
     flexDirection: "row",
     marginHorizontal: 16,
-    marginVertical: 6,
-    backgroundColor: "#0f172a",
-    borderRadius: 12,
-    padding: 12,
+    marginVertical: 8,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
   },
-
   telemetryItem: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
   },
-
   telemetryLabel: {
-    color: "#64748b",
-    fontSize: 11,
-    marginLeft: 5,
+    fontSize: 12,
+    fontWeight: "500",
+    marginLeft: 6,
     marginRight: "auto",
   },
-
   telemetryValue: {
-    color: "#fff",
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "700",
   },
-
   telemetryDivider: {
     width: 1,
-    backgroundColor: "#1e293b",
-    marginHorizontal: 10,
+    marginHorizontal: 16,
   },
-
   sectionTitle: {
-    color: "#fff",
-    fontSize: 11,
+    fontSize: 15,
     fontWeight: "700",
-    marginLeft: 18,
-    marginTop: 14,
-    marginBottom: 8,
+    marginHorizontal: 16,
+    marginTop: 20,
+    marginBottom: 12,
   },
-
   quickGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent:
-      "space-between",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
+    justifyContent: "space-between",
   },
-
   modernActionBox: {
-    backgroundColor: "#111a2e",
-    width: (width - 42) / 2,
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 10,
+    width: (width - 44) / 2,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 4,
+    marginBottom: 12,
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
   },
-
   actionIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  modernActionLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  modernActionDesc: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  emergencyPanel: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    marginTop: 16,
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  emergencyHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  emergencyTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  emergencySub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  closePanelButton: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emergencyGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  emergencyUnitCard: {
+    width: (width - 56) / 2,
+    borderWidth: 1.5,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    alignItems: "center",
+    position: "relative",
+  },
+  emergencyIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 8,
   },
-
-  modernActionLabel: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-  modernActionDesc: {
-    color: "#64748b",
-    fontSize: 10,
-  },
-
-  emergencyPanel: {
-    backgroundColor: "#0f172a",
-    marginHorizontal: 16,
-    marginTop: 14,
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#ef444430",
-  },
-
-  emergencyHeader: {
-    flexDirection: "row",
-    justifyContent:
-      "space-between",
-    alignItems: "center",
-    marginBottom: 18,
-  },
-
-  emergencyTitle: {
-    color: "#ef4444",
-    fontSize: 16,
-    fontWeight: "800",
-  },
-
-  emergencySub: {
-    color: "#94a3b8",
-    fontSize: 11,
-    marginTop: 2,
-  },
-
-  emergencyGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent:
-      "space-between",
-  },
-
-  emergencyUnitCard: {
-    width: "48%",
-    borderRadius: 14,
-    paddingVertical: 18,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    alignItems: "center",
-    position: "relative",
-  },
-
-  emergencyIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-
   emergencyUnitText: {
-    color: "#fff",
     fontSize: 12,
-    fontWeight: "700",
-    textAlign: "center",
+    fontWeight: "600",
   },
-
   selectedDot: {
     position: "absolute",
     top: 10,
     right: 10,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#00e5a8",
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-
   sendDistressBtn: {
-    backgroundColor: "#ef4444",
-    marginTop: 8,
-    borderRadius: 14,
-    paddingVertical: 16,
+    backgroundColor: "#dc2626",
     flexDirection: "row",
+    height: 52,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
   },
-
   sendDistressText: {
-    color: "#fff",
-    fontWeight: "800",
-    marginLeft: 10,
-    fontSize: 14,
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: 15,
+    marginLeft: 8,
   },
-
   bottomControls: {
-    marginTop: 12,
+    paddingHorizontal: 16,
+    marginTop: 20,
   },
-
   sosCard: {
     flexDirection: "row",
-    backgroundColor: "#ef444415",
-    marginHorizontal: 16,
-    marginBottom: 14,
-    padding: 14,
-    borderRadius: 14,
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fee2e2",
+    borderRadius: 16,
+    padding: 16,
+    alignItems: "center",
+  },
+  sosButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#dc2626",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sosCardTitle: {
+    color: "#991b1b",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  sosCardSub: {
+    color: "#ef4444",
+    fontSize: 11,
+    fontWeight: "500",
+    marginTop: 1,
+  },
+  chevronCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ef444435",
   },
-
-  sosButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#ef4444",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  sosCardTitle: {
-    color: "#ef4444",
-    fontWeight: "800",
-    fontSize: 12,
-  },
-
-  sosCardSub: {
-    color: "#94a3b8",
-    fontSize: 11,
-  },
-
-  chevronCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#ef444420",
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: "auto",
-  },
-
   logoutWrapper: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    paddingHorizontal: 16,
+    alignItems: "center",
+    marginTop: 16,
   },
-
   logoutButton: {
     flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: "#ef4444",
-    borderRadius: 8,
-    alignItems: "center",
+    borderRadius: 20,
   },
-
   logoutText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 11,
+    fontSize: 12,
+    fontWeight: "600",
   },
 });
