@@ -25,7 +25,6 @@ class EmergencyAlert(Base):
     # =========================
     full_name = Column(String, nullable=True)
 
-    # NEW FIELDS (FIX)
     phone = Column(String, nullable=True, index=True)
     email = Column(String, nullable=True, index=True)
 
@@ -39,7 +38,13 @@ class EmergencyAlert(Base):
 
     message = Column(String, nullable=False, default="🚨 Emergency Alert")
 
-    status = Column(String, nullable=False, default="active", index=True)
+    # ✅ FIXED STATUS SYSTEM
+    status = Column(
+        String,
+        nullable=False,
+        default="pending",
+        index=True
+    )
 
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
@@ -47,6 +52,7 @@ class EmergencyAlert(Base):
     # ESCALATION FIELDS
     # =========================
     emergency_type = Column(String, nullable=True, index=True)
+
     escalated_to = Column(String, nullable=True)
     escalated_at = Column(DateTime, nullable=True)
 

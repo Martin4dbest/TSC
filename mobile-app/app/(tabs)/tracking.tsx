@@ -345,6 +345,11 @@ export default function TrackingScreen() {
                   );
 
                   console.log(
+                    "SAFETY ENGINE RESPONSE:",
+                    JSON.stringify(res.data, null, 2)
+                  );
+
+                  console.log(
                     "LOCATION UPDATE:",
                     res.data
                   );

@@ -6,9 +6,11 @@ from fastapi import (
     HTTPException,
     Form
 )
+
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
 import asyncio
+from enum import Enum
 
 from app.db.session import get_db
 from app.models.user import User, UserRole
@@ -24,11 +26,17 @@ from app.services.geocoding import get_address
 
 router = APIRouter()
 
-connected_clients: list[WebSocket] = []
+connected_clients = []
+
 
 # =========================
-# HELPERS
+# TIME HELPERS
 # =========================
+
+def nigeria_time():
+    return datetime.now(timezone.utc) + timedelta(hours=1)
+
+
 def safe_address(lat, lon):
     if lat is None or lon is None:
         return "Unknown address"
@@ -38,28 +46,71 @@ def safe_address(lat, lon):
         return "Unknown address"
 
 
-def nigeria_time():
-    return datetime.now(timezone.utc) + timedelta(hours=1)
+# =========================
+# SAFETY ENGINE
+# =========================
+
+class SafetyLevel(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
+
+def calculate_risk(payload: dict, user: User = None):
+    score = 0
+
+    message = (payload.get("message") or "").lower()
+    emergency_type = (payload.get("emergency_type") or "").lower()
+
+    if any(k in message for k in ["kill", "gun", "attack", "kidnap", "blood", "help"]):
+        score += 40
+
+    if any(k in emergency_type for k in ["accident", "fire", "robbery"]):
+        score += 30
+
+    if payload.get("latitude") and payload.get("longitude"):
+        score += 10
+    else:
+        score += 10
+
+    if user:
+        score += 5
+
+    if score >= 70:
+        return SafetyLevel.CRITICAL, score
+    elif score >= 50:
+        return SafetyLevel.HIGH, score
+    elif score >= 25:
+        return SafetyLevel.MEDIUM, score
+    else:
+        return SafetyLevel.LOW, score
+
+
+def should_escalate(alert: EmergencyAlert):
+    if alert.status != "active":
+        return False
+
+    if not alert.created_at:
+        return False
+
+    elapsed = (datetime.now(timezone.utc) - alert.created_at).total_seconds()
+    return elapsed > 300
 
 
 # =========================
 # SOS ALERT
 # =========================
 
-
 @router.post("/sos")
 def trigger_sos(payload: dict, db: Session = Depends(get_db)):
     try:
-        print("SOS PAYLOAD:", payload)
-
         user_id = payload.get("user_id")
         lat = payload.get("latitude")
         lon = payload.get("longitude")
 
-        # Get user from DB
         user = db.query(User).filter(User.id == user_id).first()
 
-        # Fallbacks
         phone = payload.get("phone") or (user.phone if user else "UNKNOWN")
         email = payload.get("email") or (user.email if user else None)
         full_name = payload.get("full_name") or (user.full_name if user else "Unknown User")
@@ -67,7 +118,8 @@ def trigger_sos(payload: dict, db: Session = Depends(get_db)):
         emergency_type = payload.get("emergency_type", "General Emergency")
         message = payload.get("message", "🚨 Emergency Alert")
 
-        # Save emergency
+        safety_level, risk_score = calculate_risk(payload, user)
+
         sos = EmergencyAlert(
             user_id=user_id,
             full_name=full_name,
@@ -79,58 +131,52 @@ def trigger_sos(payload: dict, db: Session = Depends(get_db)):
             message=message,
             status="active",
             emergency_type=emergency_type,
-            created_at=nigeria_time()
+            created_at=nigeria_time(),
+
+            # IMPORTANT FIELDS (must exist in DB model)
+            risk_score=risk_score,
+            safety_level=safety_level.value
         )
 
         db.add(sos)
         db.commit()
         db.refresh(sos)
 
-        # =========================
-        # ADMIN MESSAGE (FULL DETAILS)
-        # =========================
         admin_message = f"""
 🚨 CRITICAL EMERGENCY ALERT
 
-Emergency Unit:
-{emergency_type}
+Type: {emergency_type}
+User: {full_name}
+Phone: {phone}
+Email: {email}
+User ID: {user_id}
 
-User:
-{full_name}
+Message: {message}
 
-Phone:
-{phone or "N/A"}
+Location: {sos.address}
+Lat: {lat}
+Lon: {lon}
 
-Email:
-{email or "N/A"}
-
-User ID:
-{user_id}
-
-Emergency Message:
-{message}
-
-Location:
-{sos.address}
-
-Latitude:
-{lat}
-
-Longitude:
-{lon}
+Risk Score: {risk_score}
+Safety Level: {safety_level.value}
 """
 
-        # Send notifications
         try:
-            send_email(admin_message)
-            send_sms(admin_message)
-            send_whatsapp(admin_message)
-        except Exception as notify_error:
-            print("NOTIFICATION ERROR:", notify_error)
+            if safety_level == SafetyLevel.CRITICAL:
+                send_email(admin_message)
+                send_sms(admin_message)
+                send_whatsapp(admin_message)
 
-        # =========================
-        # RESPONSE ALERT
-        # =========================
+            elif safety_level == SafetyLevel.HIGH:
+                send_email(admin_message)
+                send_whatsapp(admin_message)
+
+            else:
+                send_email(admin_message)
+
+        except Exception as e:
+            print("NOTIFICATION ERROR:", e)
+
         alert = {
             "id": sos.id,
             "user_id": sos.user_id,
@@ -143,30 +189,29 @@ Longitude:
             "message": sos.message,
             "emergency_type": sos.emergency_type,
             "status": sos.status,
-            "created_at": sos.created_at.isoformat()
+            "created_at": sos.created_at.isoformat(),
+
+            "risk_score": risk_score,
+            "safety_level": safety_level.value
         }
 
-        # WebSocket push
         for client in connected_clients[:]:
             try:
                 asyncio.create_task(client.send_json(alert))
             except:
                 connected_clients.remove(client)
 
-        return {
-            "success": True,
-            "alert": alert
-        }
+        return {"success": True, "alert": alert}
 
     except Exception as e:
         db.rollback()
-        print("🔥 SOS ERROR:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
-        
+
 # =========================
 # SHARE LOCATION
 # =========================
+
 @router.post("/share-location")
 async def share_location(
     user_id: int = Form(...),
@@ -176,17 +221,11 @@ async def share_location(
     latitude: float = Form(...),
     longitude: float = Form(...),
     address: str = Form(None),
-
-    # ✅ NEW
     emergency_message: str = Form(""),
-
     db: Session = Depends(get_db)
 ):
     try:
-        final_address = address or safe_address(
-            latitude,
-            longitude
-        )
+        final_address = address or safe_address(latitude, longitude)
 
         alert = EmergencyAlert(
             user_id=user_id,
@@ -196,13 +235,7 @@ async def share_location(
             latitude=latitude,
             longitude=longitude,
             address=final_address,
-
-            # ✅ USE USER MESSAGE
-            message=(
-                emergency_message
-                or "📍 Live location shared"
-            ),
-
+            message=emergency_message or "📍 Live location shared",
             status="active",
             created_at=nigeria_time()
         )
@@ -211,185 +244,106 @@ async def share_location(
         db.commit()
         db.refresh(alert)
 
-        admin_message = f"""
-🚨 EMERGENCY ALERT
-
-User: {full_name}
-Phone: {phone or "N/A"}
-Email: {email or "N/A"}
-User ID: {user_id}
-
-Address: {final_address}
-
-Latitude: {latitude}
-Longitude: {longitude}
-
-Emergency Message:
-{emergency_message or "No message provided"}
-"""
-
-        try:
-            send_email(admin_message)
-            send_sms(admin_message)
-            send_whatsapp(admin_message)
-        except Exception as notify_error:
-            print(
-                "NOTIFICATION ERROR:",
-                notify_error
-            )
-
-        live_alert = {
-            "id": alert.id,
-            "user_id": alert.user_id,
-            "full_name": alert.full_name,
-            "phone": alert.phone,
-            "email": alert.email,
-            "latitude": alert.latitude,
-            "longitude": alert.longitude,
-            "address": alert.address,
-
-            # ✅ SEND MESSAGE
-            "message": alert.message,
-
-            "created_at": (
-                alert.created_at.isoformat()
-            ),
-        }
-
-        # =========================
-        # WEBSOCKET PUSH
-        # =========================
         for client in connected_clients[:]:
             try:
-                asyncio.create_task(
-                    client.send_json(
-                        live_alert
-                    )
-                )
+                asyncio.create_task(client.send_json({
+                    "id": alert.id,
+                    "user_id": alert.user_id,
+                    "full_name": alert.full_name,
+                    "phone": alert.phone,
+                    "email": alert.email,
+                    "latitude": alert.latitude,
+                    "longitude": alert.longitude,
+                    "address": alert.address,
+                    "message": alert.message,
+                    "created_at": alert.created_at.isoformat()
+                }))
             except:
-                connected_clients.remove(
-                    client
-                )
+                connected_clients.remove(client)
 
-        return {
-            "success": True,
-            "alert_id": alert.id,
-            "address": final_address,
-            "message": alert.message,
-        }
+        return {"success": True, "alert_id": alert.id}
 
     except Exception as e:
-        print("ERROR:", e)
-
-        raise HTTPException(
-            status_code=500,
-            detail="Share location failed"
-        )
-
-
-# =========================
-# GET ALL ALERTS
-# =========================
-@router.get("/all")
-def get_all_emergencies(db: Session = Depends(get_db)):
-
-    alerts = db.query(EmergencyAlert).order_by(
-        EmergencyAlert.id.desc()
-    ).all()
-
-    result = []
-
-    for a in alerts:
-        result.append({
-            "id": a.id,
-            "user_id": a.user_id,
-            "full_name": a.full_name,
-
-            # ✅ FIXED PHONE (no more UNKNOWN)
-            "phone": (
-                a.phone
-                if a.phone and a.phone != "UNKNOWN"
-                else (a.user.phone if a.user and a.user.phone else None)
-            ),
-
-            "email": a.email,
-            "latitude": a.latitude,
-            "longitude": a.longitude,
-            "address": a.address or safe_address(
-                a.latitude,
-                a.longitude
-            ),
-            "message": a.message,
-            "status": a.status,
-            "emergency_type": a.emergency_type,
-            "escalated_to": a.escalated_to,
-            "escalated_at": a.escalated_at,
-            "created_at": (
-                a.created_at.isoformat()
-                if a.created_at
-                else None
-            )
-        })
-
-    return result
-
-# =========================
-# UPDATE ALERT
-# =========================
-@router.patch("/{alert_id}")
-def update_alert(
-    alert_id: int,
-    payload: dict,
-    db: Session = Depends(get_db)
-):
-
-    alert = db.query(EmergencyAlert).filter(
-        EmergencyAlert.id == alert_id
-    ).first()
-
-    if not alert:
-        raise HTTPException(
-            status_code=404,
-            detail="Alert not found"
-        )
-
-    if "status" in payload:
-        alert.status = payload["status"]
-
-    db.commit()
-    db.refresh(alert)
-
-    return {
-        "success": True,
-        "id": alert.id,
-        "status": alert.status
-    }
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # =========================
 # WEBSOCKET
 # =========================
+
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-
     await websocket.accept()
     connected_clients.append(websocket)
 
     try:
         while True:
             await websocket.receive_text()
-
     except WebSocketDisconnect:
         connected_clients.remove(websocket)
 
 
 # =========================
-# CLEAR ALERTS
+# GET ALL ALERTS
 # =========================
+
+@router.get("/all")
+def get_all_emergencies(db: Session = Depends(get_db)):
+    alerts = db.query(EmergencyAlert).order_by(EmergencyAlert.id.desc()).all()
+
+    return [
+        {
+            "id": a.id,
+            "user_id": a.user_id,
+            "full_name": a.full_name,
+            "phone": a.phone,
+            "email": a.email,
+            "latitude": a.latitude,
+            "longitude": a.longitude,
+            "address": a.address,
+            "message": a.message,
+            "status": a.status,
+            "emergency_type": a.emergency_type,
+
+            # FIXED ADMIN FIELDS
+            "risk_score": getattr(a, "risk_score", 0),
+            "safety_level": getattr(a, "safety_level", "LOW"),
+
+            "created_at": a.created_at.isoformat() if a.created_at else None
+        }
+        for a in alerts
+    ]
+
+
+# =========================
+# UPDATE ALERT
+# =========================
+
+@router.patch("/{alert_id}")
+def update_alert(alert_id: int, payload: dict, db: Session = Depends(get_db)):
+    alert = db.query(EmergencyAlert).filter(EmergencyAlert.id == alert_id).first()
+
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+
+    if "status" in payload:
+        alert.status = payload["status"]
+
+    if "escalated_to" in payload:
+        alert.escalated_to = payload["escalated_to"]
+
+    db.commit()
+    db.refresh(alert)
+
+    return {"success": True, "id": alert.id, "status": alert.status}
+
+
+# =========================
+# CLEAR
+# =========================
+
 @router.delete("/clear")
-def clear_all_emergencies(
-    db: Session = Depends(get_db)
-):
+def clear_all(db: Session = Depends(get_db)):
     db.query(EmergencyAlert).delete()
     db.commit()
     return {"success": True}
@@ -398,28 +352,13 @@ def clear_all_emergencies(
 # =========================
 # STATS
 # =========================
+
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
-
     return {
-        "users": db.query(User).filter(
-            User.role == UserRole.USER
-        ).count(),
+        "users": db.query(User).filter(User.role == UserRole.USER).count(),
         "alerts": db.query(EmergencyAlert).count(),
-        "activeAlerts": db.query(
-            EmergencyAlert
-        ).filter(
-            EmergencyAlert.status == "active"
-        ).count(),
-        "resolvedAlerts": db.query(
-            EmergencyAlert
-        ).filter(
-            EmergencyAlert.status == "resolved"
-        ).count(),
-        "escalatedAlerts": db.query(
-            EmergencyAlert
-        ).filter(
-            EmergencyAlert.status == "escalated"
-        ).count(),
-        "wallet": 0
+        "activeAlerts": db.query(EmergencyAlert).filter(EmergencyAlert.status == "active").count(),
+        "resolvedAlerts": db.query(EmergencyAlert).filter(EmergencyAlert.status == "resolved").count(),
+        "escalatedAlerts": db.query(EmergencyAlert).filter(EmergencyAlert.status == "escalated").count(),
     }

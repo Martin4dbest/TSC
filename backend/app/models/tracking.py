@@ -20,5 +20,6 @@ class TrackingLog(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    user = relationship("User")
+    # Relationships
+    user = relationship("User", backref="tracking_logs")
     trip = relationship("Trip", back_populates="tracking_logs")
