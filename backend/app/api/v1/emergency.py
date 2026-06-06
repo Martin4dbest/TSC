@@ -9,10 +9,12 @@ from fastapi import (
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
 import asyncio
+from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.models.user import User, UserRole
 from app.models.emergency import EmergencyAlert
+from app.models.emergency import EmergencyFeedback
 
 from app.services.notifications import (
     send_email,
@@ -25,6 +27,17 @@ from app.services.geocoding import get_address
 router = APIRouter()
 
 connected_clients: list[WebSocket] = []
+
+# =========================
+# SCHEMAS (DATA VALIDATION)
+# =========================
+class FeedbackRequest(BaseModel):
+    emergency_id: int | None = None
+    user_id: int
+    full_name: str
+    outcome: str
+    feedback: str
+
 
 # =========================
 # HELPERS
@@ -45,8 +58,6 @@ def nigeria_time():
 # =========================
 # SOS ALERT
 # =========================
-
-
 @router.post("/sos")
 def trigger_sos(payload: dict, db: Session = Depends(get_db)):
     try:
@@ -163,7 +174,7 @@ Longitude:
         print("🔥 SOS ERROR:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
-        
+
 # =========================
 # SHARE LOCATION
 # =========================
@@ -176,10 +187,7 @@ async def share_location(
     latitude: float = Form(...),
     longitude: float = Form(...),
     address: str = Form(None),
-
-    # ✅ NEW
     emergency_message: str = Form(""),
-
     db: Session = Depends(get_db)
 ):
     try:
@@ -196,13 +204,10 @@ async def share_location(
             latitude=latitude,
             longitude=longitude,
             address=final_address,
-
-            # ✅ USE USER MESSAGE
             message=(
                 emergency_message
                 or "📍 Live location shared"
             ),
-
             status="active",
             created_at=nigeria_time()
         )
@@ -247,10 +252,7 @@ Emergency Message:
             "latitude": alert.latitude,
             "longitude": alert.longitude,
             "address": alert.address,
-
-            # ✅ SEND MESSAGE
             "message": alert.message,
-
             "created_at": (
                 alert.created_at.isoformat()
             ),
@@ -280,7 +282,6 @@ Emergency Message:
 
     except Exception as e:
         print("ERROR:", e)
-
         raise HTTPException(
             status_code=500,
             detail="Share location failed"
@@ -292,26 +293,21 @@ Emergency Message:
 # =========================
 @router.get("/all")
 def get_all_emergencies(db: Session = Depends(get_db)):
-
     alerts = db.query(EmergencyAlert).order_by(
         EmergencyAlert.id.desc()
     ).all()
 
     result = []
-
     for a in alerts:
         result.append({
             "id": a.id,
             "user_id": a.user_id,
             "full_name": a.full_name,
-
-            # ✅ FIXED PHONE (no more UNKNOWN)
             "phone": (
                 a.phone
                 if a.phone and a.phone != "UNKNOWN"
                 else (a.user.phone if a.user and a.user.phone else None)
             ),
-
             "email": a.email,
             "latitude": a.latitude,
             "longitude": a.longitude,
@@ -333,6 +329,7 @@ def get_all_emergencies(db: Session = Depends(get_db)):
 
     return result
 
+
 # =========================
 # UPDATE ALERT
 # =========================
@@ -342,7 +339,6 @@ def update_alert(
     payload: dict,
     db: Session = Depends(get_db)
 ):
-
     alert = db.query(EmergencyAlert).filter(
         EmergencyAlert.id == alert_id
     ).first()
@@ -371,14 +367,12 @@ def update_alert(
 # =========================
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-
     await websocket.accept()
     connected_clients.append(websocket)
 
     try:
         while True:
             await websocket.receive_text()
-
     except WebSocketDisconnect:
         connected_clients.remove(websocket)
 
@@ -400,7 +394,6 @@ def clear_all_emergencies(
 # =========================
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
-
     return {
         "users": db.query(User).filter(
             User.role == UserRole.USER
@@ -423,3 +416,32 @@ def get_stats(db: Session = Depends(get_db)):
         ).count(),
         "wallet": 0
     }
+
+
+# =========================
+# EMERGENCY FEEDBACK
+# =========================
+@router.post("/feedback")
+def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
+    try:
+        feedback = EmergencyFeedback(
+            emergency_id=payload.emergency_id,
+            user_id=payload.user_id,
+            full_name=payload.full_name,
+            outcome=payload.outcome,
+            feedback=payload.feedback,
+        )
+
+        db.add(feedback)
+        db.commit()
+        db.refresh(feedback)
+
+        return {
+            "success": True,
+            "message": "Feedback submitted successfully",
+            "id": feedback.id
+        }
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

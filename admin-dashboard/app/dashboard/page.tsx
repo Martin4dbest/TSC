@@ -22,6 +22,7 @@ import {
   Eye,
   EyeOff,
   Smartphone,
+  MessageSquare, // Added import for feedback icon
 } from "lucide-react";
 
 const BASE_URL = "https://tsc-backend-nefz.onrender.com";
@@ -249,7 +250,7 @@ export default function Dashboard() {
       className={`${theme} min-h-screen flex font-sans text-[11px]`}
     >
       {/* =================================================
-          SIDEBAR
+           SIDEBAR
       ================================================= */}
       <aside
         className={`w-56 fixed h-screen p-4 border-r flex flex-col justify-between transition-all duration-200 z-10 ${sidebar}`}
@@ -289,6 +290,14 @@ export default function Dashboard() {
               label="Emergency"
               color="text-rose-400"
               route="/dashboard/emergency"
+            />
+
+            {/* ✅ NEW COMPONENT ADDED HERE */}
+            <Nav
+              icon={<MessageSquare size={13} />}
+              label="Emergency Feedback Reports"
+              color="text-yellow-400"
+              route="/dashboard/emergency-feedback"
             />
 
             <Nav

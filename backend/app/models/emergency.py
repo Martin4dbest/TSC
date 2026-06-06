@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -61,3 +61,48 @@ class EmergencyAlert(Base):
     # =========================
     screenshot = Column(String, nullable=True)
     share_type = Column(String, nullable=True)
+
+
+class EmergencyFeedback(Base):
+    __tablename__ = "emergency_feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # ✅ ADDED FIELD HERE
+    emergency_id = Column(
+        Integer,
+        ForeignKey("emergency_alerts.id"),
+        nullable=False
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True
+    )
+
+    full_name = Column(String, nullable=True)
+
+    outcome = Column(
+        String,
+        nullable=False
+    )
+    # rescued
+    # helped
+    # not_helped
+
+    feedback = Column(
+        Text,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    emergency = relationship(
+        "EmergencyAlert",
+        back_populates="feedbacks"
+    )

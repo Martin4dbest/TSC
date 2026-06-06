@@ -600,6 +600,14 @@ export default function HomeDashboard() {
                 onPress={handleForceDistress}
                 theme={theme}
               />
+              <ModernAction
+                icon="message-alert"
+                label="Rescue Feedback"
+                description="Report Outcome"
+                color="#0891b2"
+                onPress={() => router.push("/(tabs)/rescue-feedback" as any)}
+                theme={theme}
+              />
             </View>
           </View>
 
