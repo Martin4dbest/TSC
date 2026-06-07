@@ -424,8 +424,19 @@ def get_stats(db: Session = Depends(get_db)):
 @router.post("/feedback")
 def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
     try:
+        # ✅ SAFE emergency_id handling
+        emergency_id = payload.emergency_id
+
+        if emergency_id is not None:
+            emergency = db.query(EmergencyAlert).filter(
+                EmergencyAlert.id == emergency_id
+            ).first()
+
+            if not emergency:
+                emergency_id = None  # 🔥 IMPORTANT SAFE FALLBACK
+
         feedback = EmergencyFeedback(
-            emergency_id=payload.emergency_id,
+            emergency_id=emergency_id,  # SAFE NOW
             user_id=payload.user_id,
             full_name=payload.full_name,
             outcome=payload.outcome,
@@ -444,4 +455,5 @@ def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
 
     except Exception as e:
         db.rollback()
+        print("FEEDBACK ERROR:", str(e))
         raise HTTPException(status_code=500, detail=str(e))

@@ -56,24 +56,24 @@ class EmergencyAlert(Base):
 
 # =========================
 # EMERGENCY FEEDBACK MODEL (SIMPLIFIED + FIXED)
-# =========================
+
+
 class EmergencyFeedback(Base):
     __tablename__ = "emergency_feedback"
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # 🔥 KEEP ONLY THIS (MANDATORY LINK)
+    # ✅ OPTIONAL (IMPORTANT FIX)
     emergency_id = Column(
         Integer,
-        ForeignKey("emergency_alerts.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("emergency_alerts.id"),
+        nullable=True,
         index=True
     )
 
-    # ⚠️ OPTIONAL: keep user_id ONLY for tracking (NOT required from frontend)
     user_id = Column(
         Integer,
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("users.id"),
         nullable=False,
         index=True
     )
@@ -81,16 +81,11 @@ class EmergencyFeedback(Base):
     full_name = Column(String, nullable=True)
 
     outcome = Column(String, nullable=False)
-    # rescued | helped | not_helped
 
     feedback = Column(Text, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # RELATIONSHIPS
-    emergency = relationship(
-        "EmergencyAlert",
-        back_populates="feedbacks"
-    )
-
+    # relationships (safe)
     user = relationship("User")
+    emergency = relationship("EmergencyAlert")
