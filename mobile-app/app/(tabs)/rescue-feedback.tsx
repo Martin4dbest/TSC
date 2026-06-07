@@ -8,6 +8,8 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  SafeAreaView,
+  StatusBar,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
@@ -62,6 +64,9 @@ export default function RescueFeedback() {
 
       setStatus("");
       setFeedback("");
+      
+      // Explicitly return to home dashboard layout configuration
+      navigation.navigate("Home" as never);
     } catch (error) {
       console.log(error);
 
@@ -75,235 +80,280 @@ export default function RescueFeedback() {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* HEADER SECTION WITH BACK BUTTON */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      <Text style={styles.title}>
-        Emergency Outcome Report
-      </Text>
-
-      <Text style={styles.subtitle}>
-        Let the admin know what happened after your emergency request.
-      </Text>
-
-      <Text style={styles.label}>
-        Were you rescued or assisted?
-      </Text>
-
-      <View style={styles.options}>
-        <TouchableOpacity
-          style={[
-            styles.option,
-            status === "rescued" ? styles.selectedRescued : null,
-          ]}
-          onPress={() => setStatus("rescued")}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.optionText, status === "rescued" ? styles.selectedRescuedText : null]}>
-            ✅ Rescued Successfully
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.option,
-            status === "helped" ? styles.selectedHelped : null,
-          ]}
-          onPress={() => setStatus("helped")}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.optionText, status === "helped" ? styles.selectedHelpedText : null]}>
-            🤝 Help Was Provided
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.option,
-            status === "not_helped" ? styles.selectedNotHelped : null,
-          ]}
-          onPress={() => setStatus("not_helped")}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.optionText, status === "not_helped" ? styles.selectedNotHelpedText : null]}>
-            ❌ No Help Received
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.label}>
-        Describe what happened
-      </Text>
-
-      <TextInput
-        style={styles.textArea}
-        multiline
-        numberOfLines={8}
-        placeholder="Describe the incident, response time, who assisted you, and any additional information..."
-        placeholderTextColor="#9ca3af"
-        value={feedback}
-        onChangeText={setFeedback}
-      />
-
-      <TouchableOpacity
-        style={styles.submitBtn}
-        onPress={submitFeedback}
-        disabled={loading}
-        activeOpacity={0.9}
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.submitText}>
-            Submit Report
-          </Text>
-        )}
+        <Text style={styles.title}>Emergency Outcome</Text>
+        <Text style={styles.subtitle}>
+          Help us evaluate response effectiveness by confirming what happened following your dispatch request.
+        </Text>
+
+        <Text style={styles.label}>Resolution Status</Text>
+        <View style={styles.optionsContainer}>
+          <TouchableOpacity
+            style={[
+              styles.optionCard,
+              status === "rescued" ? styles.selectedRescuedCard : null,
+            ]}
+            onPress={() => setStatus("rescued")}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.radioDot, status === "rescued" ? styles.radioDotRescued : null]}>
+              {status === "rescued" && <View style={[styles.radioDotInner, { backgroundColor: "#10b981" }]} />}
+            </View>
+            <View style={styles.optionContent}>
+              <Text style={[styles.optionTitle, status === "rescued" ? styles.textRescued : null]}>
+                ✅ Rescued Successfully
+              </Text>
+              <Text style={styles.optionDescription}>First responders arrived and handled the incident.</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.optionCard,
+              status === "helped" ? styles.selectedHelpedCard : null,
+            ]}
+            onPress={() => setStatus("helped")}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.radioDot, status === "helped" ? styles.radioDotHelped : null]}>
+              {status === "helped" && <View style={[styles.radioDotInner, { backgroundColor: "#2563eb" }]} />}
+            </View>
+            <View style={styles.optionContent}>
+              <Text style={[styles.optionTitle, status === "helped" ? styles.textHelped : null]}>
+                🤝 Partial Help Provided
+              </Text>
+              <Text style={styles.optionDescription}>Assistance was received via alternative bystanders or contacts.</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.optionCard,
+              status === "not_helped" ? styles.selectedNotHelpedCard : null,
+            ]}
+            onPress={() => setStatus("not_helped")}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.radioDot, status === "not_helped" ? styles.radioDotNotHelped : null]}>
+              {status === "not_helped" && <View style={[styles.radioDotInner, { backgroundColor: "#ef4444" }]} />}
+            </View>
+            <View style={styles.optionContent}>
+              <Text style={[styles.optionTitle, status === "not_helped" ? styles.textNotHelped : null]}>
+                ❌ No Help Received
+              </Text>
+              <Text style={styles.optionDescription}>No units arrived or emergency requirements were unfulfilled.</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.label}>Incident Log Details</Text>
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={styles.modernTextArea}
+            multiline
+            numberOfLines={6}
+            placeholder="Provide context regarding response arrival delays, dispatch personnel names, situational outcomes, or general operational notes..."
+            placeholderTextColor="#9ca3af"
+            value={feedback}
+            onChangeText={setFeedback}
+            underlineColorAndroid="transparent"
+          />
+        </View>
+
+        <TouchableOpacity
+          style={[styles.premiumSubmitBtn, !status || !feedback.trim() ? styles.disabledBtn : null]}
+          onPress={submitFeedback}
+          disabled={loading}
+          activeOpacity={0.9}
+        >
+          {loading ? (
+            <ActivityIndicator color="#ffffff" size="small" />
+          ) : (
+            <Text style={styles.premiumSubmitText}>Submit Official Report</Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* FLOATING BOTTOM RIGHT BACK BUTTON */}
+      <TouchableOpacity 
+        style={styles.floatingBottomRightBack} 
+        onPress={() => navigation.navigate("Home" as never)}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.floatingBackText}>Home →</Text>
       </TouchableOpacity>
-    </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    paddingBottom: 50,
+  safeArea: {
+    flex: 1,
     backgroundColor: "#ffffff",
-    flexGrow: 1,
   },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-    marginBottom: 20,
+  scrollContainer: {
+    padding: 24,
+    paddingTop: 32,
+    paddingBottom: 110, // Generous padding to prevent element conflict with the floating button
   },
-
-  backButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: "#f3f4f6",
-  },
-
-  backButtonText: {
-    fontSize: 14,
-    color: "#4b5563",
-    fontWeight: "600",
-  },
-
   title: {
-    fontSize: 24,
-    fontWeight: "700",
+    fontSize: 26,
+    fontWeight: "800",
     color: "#111827",
     marginBottom: 8,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
-
   subtitle: {
     fontSize: 14,
-    color: "#6b7280",
-    marginBottom: 25,
-    lineHeight: 20,
+    color: "#4b5563",
+    lineHeight: 22,
+    marginBottom: 28,
   },
-
   label: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
     color: "#111827",
-    marginBottom: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 12,
   },
-
-  options: {
-    marginBottom: 25,
+  optionsContainer: {
+    marginBottom: 24,
   },
-
-  option: {
+  optionCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     borderWidth: 1.5,
-    borderColor: "#e5e7eb",
-    borderRadius: 12,
+    borderColor: "#f3f4f6",
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#fafafa",
   },
-
-  // Color-specific selection variants
-  selectedRescued: {
-    borderColor: "#10b981",
-    backgroundColor: "#ecfdf5",
+  optionContent: {
+    flex: 1,
+    marginLeft: 12,
   },
-
-  selectedRescuedText: {
-    color: "#065f46",
-    fontWeight: "600",
+  radioDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: "#d1d5db",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
   },
-
-  selectedHelped: {
-    borderColor: "#2563eb",
-    backgroundColor: "#eff6ff",
+  radioDotInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-
-  selectedHelpedText: {
-    color: "#1e40af",
-    fontWeight: "600",
-  },
-
-  selectedNotHelped: {
-    borderColor: "#ef4444",
-    backgroundColor: "#fef2f2",
-  },
-
-  selectedNotHelpedText: {
-    color: "#991b1b",
-    fontWeight: "600",
-  },
-
-  optionText: {
+  optionTitle: {
     fontSize: 15,
-    color: "#374151",
-    fontWeight: "500",
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 4,
   },
-
-  textArea: {
-    borderWidth: 1.5,
-    borderColor: "#e5e7eb",
-    borderRadius: 12,
-    padding: 15,
-    height: 160,
-    textAlignVertical: "top",
+  optionDescription: {
+    fontSize: 12,
+    color: "#6b7280",
+    lineHeight: 16,
+  },
+  selectedRescuedCard: { 
+    borderColor: "#10b981", 
+    backgroundColor: "#f0fdf4" 
+  },
+  radioDotRescued: { 
+    borderColor: "#10b981" 
+  },
+  textRescued: { 
+    color: "#065f46" 
+  },
+  selectedHelpedCard: { 
+    borderColor: "#2563eb", 
+    backgroundColor: "#eff6ff" 
+  },
+  radioDotHelped: { 
+    borderColor: "#2563eb" 
+  },
+  textHelped: { 
+    color: "#1e40af" 
+  },
+  selectedNotHelpedCard: { 
+    borderColor: "#ef4444", 
+    backgroundColor: "#fdf2f2" 
+  },
+  radioDotNotHelped: { 
+    borderColor: "#ef4444" 
+  },
+  textNotHelped: { 
+    color: "#991b1b" 
+  },
+  inputWrapper: {
     backgroundColor: "#f9fafb",
-    marginBottom: 25,
+    borderWidth: 1.5,
+    borderColor: "#f3f4f6",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 32,
+  },
+  modernTextArea: {
+    height: 130,
+    textAlignVertical: "top",
     fontSize: 15,
     color: "#111827",
+    lineHeight: 22,
   },
-
-  submitBtn: {
-    backgroundColor: "#2563eb",
-    height: 55,
-    borderRadius: 12,
+  premiumSubmitBtn: {
+    backgroundColor: "#111827",
+    height: 56,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#2563eb",
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
   },
-
-  submitText: {
+  disabledBtn: {
+    opacity: 0.4,
+  },
+  premiumSubmitText: {
     color: "#ffffff",
     fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: -0.2,
+  },
+  floatingBottomRightBack: {
+    position: "absolute",
+    bottom: 24,
+    right: 24,
+    backgroundColor: "#f3f4f6",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 24,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  floatingBackText: {
+    color: "#374151",
+    fontSize: 14,
     fontWeight: "700",
+    letterSpacing: -0.1,
   },
 });
