@@ -522,3 +522,19 @@ def clear_all_feedbacks(db: Session = Depends(get_db)):
         db.rollback()
         print("🔥 CLEAR FEEDBACKS ERROR:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# PERMANENTLY CLEAR FEEDBACK ENTRIES FROM DATABASE
+# ============================================================================
+@router.delete("/feedback/clear")
+def clear_all_feedbacks(db: Session = Depends(get_db)):
+    try:
+        # Executes hard-delete query on the target table
+        db.query(EmergencyFeedback).delete()
+        db.commit() # Permanently flushes transactions to the database
+        return {"success": True, "message": "All feedback data has been permanently cleared"}
+    except Exception as e:
+        db.rollback()
+        print("🔥 PERMANENT CLEAR FEEDBACKS ERROR:", str(e))
+        raise HTTPException(status_code=500, detail=str(e))

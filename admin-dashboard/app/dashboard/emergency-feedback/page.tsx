@@ -45,7 +45,7 @@ export default function EmergencyFeedbackPage() {
         ? data.feedbacks
         : [];
 
-      // FIXED: Force phone properties and raw timestamps directly to the UI rendering keys
+      // Force phone properties and raw timestamps directly to the UI rendering keys
       const normalized: Feedback[] = rawList.map((item: any) => {
         const resolvedPhone = item.phone || item.phone_number || item.phoneNumber || "No record";
         const resolvedTime = item.created_at || item.createdAt || item.timestamp || new Date().toISOString();
@@ -67,13 +67,13 @@ export default function EmergencyFeedbackPage() {
     }
   };
 
-  // FIXED: Confirmation logic handler to wipe database state elements cleanly
+  // Confirmation logic handler to wipe database state elements cleanly
   const handleClearFeedback = async () => {
     const confirmClear = window.confirm("Do you want to clear?");
     if (!confirmClear) return;
 
     try {
-      // Optional API hook configuration in case your backend accepts bulk reset routes
+      // NOTE: Ensure your backend has a route at this URL that supports DELETE
       await fetch(FEEDBACK_URL, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" }
@@ -136,7 +136,6 @@ export default function EmergencyFeedbackPage() {
 
           {/* SYSTEM INTERACTIONS CONTROL INTERFACES */}
           <div className="flex items-center gap-2">
-            {/* FIXED: Added a contextual dynamic action clear state trigger toggle button component */}
             <button
               onClick={handleClearFeedback}
               className="px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-[11px] font-medium transition-all bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20"
@@ -242,7 +241,6 @@ export default function EmergencyFeedbackPage() {
                             darkMode ? "hover:bg-white/[0.02]" : "hover:bg-slate-100/60"
                           }`}
                         >
-                          {/* User Metadata */}
                           <td className="p-3 align-top">
                             <div className={`font-semibold text-[12px] ${darkMode ? "text-white" : "text-slate-900"}`}>
                               {item.full_name || "Unknown User"}
@@ -255,7 +253,6 @@ export default function EmergencyFeedbackPage() {
                             </div>
                           </td>
 
-                          {/* Outcome Indicators */}
                           <td className="p-3 align-top">
                             {item.outcome === "rescued" && (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -274,12 +271,10 @@ export default function EmergencyFeedbackPage() {
                             )}
                           </td>
 
-                          {/* Raw Narrative Text */}
                           <td className={`p-3 leading-relaxed font-normal text-[11px] align-top whitespace-pre-line ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
                             {item.feedback}
                           </td>
 
-                          {/* Laptop Localized System Clock Time Stamp */}
                           <td className="p-3 align-top whitespace-nowrap text-slate-400">
                             {item.created_at && !isNaN(Date.parse(item.created_at)) ? (
                               <div className="space-y-0.5">
