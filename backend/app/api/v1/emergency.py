@@ -13,7 +13,8 @@ from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.models.user import User, UserRole
-from app.models.emergency import EmergencyAlert, EmergencyFeedback
+from app.models.emergency import EmergencyAlert
+from app.models.emergency import EmergencyFeedback
 
 from app.services.notifications import (
     send_email,
@@ -27,6 +28,7 @@ router = APIRouter()
 
 connected_clients: list[WebSocket] = []
 
+
 # =========================
 # SCHEMAS (DATA VALIDATION)
 # =========================
@@ -34,7 +36,6 @@ class FeedbackRequest(BaseModel):
     emergency_id: int | None = None
     user_id: int
     full_name: str
-    phone: str | None = None  # ✅ Added validation schema support for phone entries
     outcome: str
     feedback: str
 
@@ -78,10 +79,6 @@ def trigger_sos(payload: dict, db: Session = Depends(get_db)):
         emergency_type = payload.get("emergency_type", "General Emergency")
         message = payload.get("message", "🚨 Emergency Alert")
 
-        # Get current precise Nigeria Time
-        current_time = nigeria_time()
-        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S WAT")
-
         # Save emergency
         sos = EmergencyAlert(
             user_id=user_id,
@@ -94,7 +91,7 @@ def trigger_sos(payload: dict, db: Session = Depends(get_db)):
             message=message,
             status="active",
             emergency_type=emergency_type,
-            created_at=current_time
+            created_at=nigeria_time()
         )
 
         db.add(sos)
@@ -102,13 +99,10 @@ def trigger_sos(payload: dict, db: Session = Depends(get_db)):
         db.refresh(sos)
 
         # =========================
-        # ADMIN MESSAGE (WITH TIMESTAMP)
+        # ADMIN MESSAGE (FULL DETAILS)
         # =========================
         admin_message = f"""
 🚨 CRITICAL EMERGENCY ALERT
-
-Time of Incident:
-{formatted_time}
 
 Emergency Unit:
 {emergency_type}
@@ -173,7 +167,6 @@ Longitude:
 
         return {
             "success": True,
-            "should_refresh": True,  # Signal frontend page to refresh 
             "alert": alert
         }
 
@@ -204,9 +197,6 @@ async def share_location(
             longitude
         )
 
-        current_time = nigeria_time()
-        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S WAT")
-
         alert = EmergencyAlert(
             user_id=user_id,
             full_name=full_name,
@@ -220,7 +210,7 @@ async def share_location(
                 or "📍 Live location shared"
             ),
             status="active",
-            created_at=current_time
+            created_at=nigeria_time()
         )
 
         db.add(alert)
@@ -229,8 +219,6 @@ async def share_location(
 
         admin_message = f"""
 🚨 EMERGENCY ALERT
-
-Time Shared: {formatted_time}
 
 User: {full_name}
 Phone: {phone or "N/A"}
@@ -288,7 +276,6 @@ Emergency Message:
 
         return {
             "success": True,
-            "should_refresh": True,  # Signal frontend page to refresh
             "alert_id": alert.id,
             "address": final_address,
             "message": alert.message,
@@ -433,33 +420,34 @@ def get_stats(db: Session = Depends(get_db)):
 
 
 # =========================
-# EMERGENCY FEEDBACK
+# EMERGENCY FEEDBACK (FIXED)
 # =========================
 @router.post("/feedback")
 def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
     try:
-        emergency_id = payload.emergency_id
+        final_emergency_id = payload.emergency_id
 
-        if emergency_id is not None:
-            emergency = db.query(EmergencyAlert).filter(
-                EmergencyAlert.id == emergency_id
-            ).first()
-
-            if not emergency:
-                emergency_id = None
-
-        # Fetch missing fallback phone number directly from primary profiles if omitted in payload
-        final_phone = payload.phone
-        if not final_phone:
-            user = db.query(User).filter(User.id == payload.user_id).first()
-            if user:
-                final_phone = user.phone
+        # AUTOMATIC FALLBACK FIX:
+        # If the mobile client doesn't send an emergency_id, find the absolute latest 
+        # emergency alert reported by this user to pair the relation cleanly in SQL.
+        if not final_emergency_id:
+            latest_alert = (
+                db.query(EmergencyAlert)
+                .filter(EmergencyAlert.user_id == payload.user_id)
+                .order_by(EmergencyAlert.id.desc())
+                .first()
+            )
+            if latest_alert:
+                final_emergency_id = latest_alert.id
+            else:
+                # If the user somehow logs feedback without an existing emergency history,
+                # we bypass database foreign relational restrictions gracefully.
+                final_emergency_id = None
 
         feedback = EmergencyFeedback(
-            emergency_id=emergency_id,
+            emergency_id=final_emergency_id,
             user_id=payload.user_id,
             full_name=payload.full_name,
-            phone=final_phone,  # ✅ Saves verified phone entries to rows
             outcome=payload.outcome,
             feedback=payload.feedback,
         )
@@ -470,43 +458,11 @@ def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
 
         return {
             "success": True,
-            "should_refresh": True,
             "message": "Feedback submitted successfully",
             "id": feedback.id
         }
 
     except Exception as e:
         db.rollback()
-        print("FEEDBACK ERROR:", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/feedback/all")
-def get_all_feedback(db: Session = Depends(get_db)):
-    try:
-        feedbacks = db.query(EmergencyFeedback).order_by(
-            EmergencyFeedback.id.desc()
-        ).all()
-
-        result = []
-        for f in feedbacks:
-            # ✅ Safe Fallback: Read row column or step into User Profile relationship tree
-            phone_record = getattr(f, 'phone', None)
-            if not phone_record:
-                phone_record = f.user.phone if (hasattr(f, 'user') and f.user and getattr(f.user, 'phone', None)) else None
-
-            result.append({
-                "id": f.id,
-                "user_id": f.user_id,
-                "full_name": f.full_name,
-                "phone": phone_record,  # ✅ NOW EXPLICITLY SENT TO THE FRONTEND DASHBOARD
-                "outcome": f.outcome,
-                "feedback": f.feedback,
-                "created_at": f.created_at.isoformat() if getattr(f, 'created_at', None) else None,
-            })
-
-        return result
-
-    except Exception as e:
-        print("🔥 FETCH FEEDBACK ERROR:", str(e))
+        print("🔥 BACKEND FEEDBACK CRASH:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
