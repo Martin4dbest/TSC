@@ -46,7 +46,7 @@ class EmergencyAlert(Base):
     screenshot = Column(String, nullable=True)
     share_type = Column(String, nullable=True)
 
-    # ✅ FIX: RELATIONSHIP TO FEEDBACK (IMPORTANT)
+    # ✅ FEEDBACK RELATIONSHIP (FIXED)
     feedbacks = relationship(
         "EmergencyFeedback",
         back_populates="emergency",
@@ -55,14 +55,14 @@ class EmergencyAlert(Base):
 
 
 # =========================
-# EMERGENCY FEEDBACK MODEL (FIXED)
+# EMERGENCY FEEDBACK MODEL (SIMPLIFIED + FIXED)
 # =========================
 class EmergencyFeedback(Base):
     __tablename__ = "emergency_feedback"
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # 🔥 REQUIRED FK (MUST BE VALID)
+    # 🔥 KEEP ONLY THIS (MANDATORY LINK)
     emergency_id = Column(
         Integer,
         ForeignKey("emergency_alerts.id", ondelete="CASCADE"),
@@ -70,6 +70,7 @@ class EmergencyFeedback(Base):
         index=True
     )
 
+    # ⚠️ OPTIONAL: keep user_id ONLY for tracking (NOT required from frontend)
     user_id = Column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -79,25 +80,17 @@ class EmergencyFeedback(Base):
 
     full_name = Column(String, nullable=True)
 
-    # OUTCOME FIELD (FIXED ENUM-LIKE USAGE)
-    outcome = Column(
-        String,
-        nullable=False
-    )
-    # expected values:
-    # rescued
-    # helped
-    # not_helped
+    outcome = Column(String, nullable=False)
+    # rescued | helped | not_helped
 
     feedback = Column(Text, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # 🔥 FIXED RELATIONSHIPS
+    # RELATIONSHIPS
     emergency = relationship(
         "EmergencyAlert",
         back_populates="feedbacks"
     )
 
-    user = relationship(
-        "User")
+    user = relationship("User")
