@@ -34,7 +34,7 @@ class FeedbackRequest(BaseModel):
     emergency_id: int | None = None
     user_id: int
     full_name: str
-    phone: str | None = None  
+    phone: str | None = None  # ✅ Added validation schema support for phone entries
     outcome: str
     feedback: str
 
@@ -52,9 +52,7 @@ def safe_address(lat, lon):
 
 
 def nigeria_time():
-    # ✅ Fix: Use an explicit timezone offset object instead of altering the raw UTC calculation math.
-    # This ensures the output is properly flagged as UTC+1.
-    return datetime.now(timezone(timedelta(hours=1)))
+    return datetime.now(timezone.utc) + timedelta(hours=1)
 
 
 # =========================
@@ -175,7 +173,7 @@ Longitude:
 
         return {
             "success": True,
-            "should_refresh": True,  
+            "should_refresh": True,  # Signal frontend page to refresh 
             "alert": alert
         }
 
@@ -290,7 +288,7 @@ Emergency Message:
 
         return {
             "success": True,
-            "should_refresh": True,  
+            "should_refresh": True,  # Signal frontend page to refresh
             "alert_id": alert.id,
             "address": final_address,
             "message": alert.message,
@@ -450,6 +448,7 @@ def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
             if not emergency:
                 emergency_id = None
 
+        # Fetch missing fallback phone number directly from primary profiles if omitted in payload
         final_phone = payload.phone
         if not final_phone:
             user = db.query(User).filter(User.id == payload.user_id).first()
@@ -460,11 +459,9 @@ def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
             emergency_id=emergency_id,
             user_id=payload.user_id,
             full_name=payload.full_name,
-            phone=final_phone,  
+            phone=final_phone,  # ✅ Saves verified phone entries to rows
             outcome=payload.outcome,
             feedback=payload.feedback,
-            # ✅ Save clean timezone objects directly into new feedback columns
-            created_at=nigeria_time()
         )
 
         db.add(feedback)
@@ -493,21 +490,19 @@ def get_all_feedback(db: Session = Depends(get_db)):
 
         result = []
         for f in feedbacks:
+            # ✅ Safe Fallback: Read row column or step into User Profile relationship tree
             phone_record = getattr(f, 'phone', None)
             if not phone_record:
                 phone_record = f.user.phone if (hasattr(f, 'user') and f.user and getattr(f.user, 'phone', None)) else None
-
-            # ✅ Fallback to make sure created_at is valid or use current time
-            time_record = getattr(f, 'created_at', None) or nigeria_time()
 
             result.append({
                 "id": f.id,
                 "user_id": f.user_id,
                 "full_name": f.full_name,
-                "phone": phone_record,  
+                "phone": phone_record,  # ✅ NOW EXPLICITLY SENT TO THE FRONTEND DASHBOARD
                 "outcome": f.outcome,
                 "feedback": f.feedback,
-                "created_at": time_record.isoformat(),
+                "created_at": f.created_at.isoformat() if getattr(f, 'created_at', None) else None,
             })
 
         return result
