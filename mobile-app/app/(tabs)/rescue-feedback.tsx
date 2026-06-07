@@ -59,14 +59,24 @@ export default function RescueFeedback() {
 
       Alert.alert(
         "Submitted Successfully",
-        "Your emergency outcome report has been sent to the admin."
+        "Your emergency outcome report has been sent to the admin.",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              setStatus("");
+              setFeedback("");
+              // Automatically go back after pressing OK on successful alert notice
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                navigation.navigate("Home" as never);
+              }
+            }
+          }
+        ]
       );
 
-      setStatus("");
-      setFeedback("");
-      
-      // Explicitly return to home dashboard layout configuration
-      navigation.navigate("Home" as never);
     } catch (error) {
       console.log(error);
 
@@ -79,9 +89,30 @@ export default function RescueFeedback() {
     }
   };
 
+  const handleBackNavigation = () => {
+    // Best Practice: Pops the screen cleanly off the navigation stack
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      // Fallback fallback option if stack history is cleared out
+      navigation.navigate("Home" as never);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+
+      {/* TOP CLEAN BACK HEADER BAR BUTTON */}
+      <View style={styles.headerBar}>
+        <TouchableOpacity 
+          style={styles.headerBackButton} 
+          onPress={handleBackNavigation}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.headerBackText}>← Back to Dashboard</Text>
+        </TouchableOpacity>
+      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
@@ -170,7 +201,7 @@ export default function RescueFeedback() {
         <TouchableOpacity
           style={[styles.premiumSubmitBtn, !status || !feedback.trim() ? styles.disabledBtn : null]}
           onPress={submitFeedback}
-          disabled={loading}
+          disabled={loading || !status || !feedback.trim()}
           activeOpacity={0.9}
         >
           {loading ? (
@@ -180,15 +211,6 @@ export default function RescueFeedback() {
           )}
         </TouchableOpacity>
       </ScrollView>
-
-      {/* FLOATING BOTTOM RIGHT BACK BUTTON */}
-      <TouchableOpacity 
-        style={styles.floatingBottomRightBack} 
-        onPress={() => navigation.navigate("Home" as never)}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.floatingBackText}>Home →</Text>
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -198,10 +220,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#ffffff",
   },
+  headerBar: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderColor: "#f3f4f6",
+    backgroundColor: "#ffffff",
+  },
+  headerBackButton: {
+    alignSelf: "flex-start",
+    paddingVertical: 6,
+    paddingRight: 16,
+  },
+  headerBackText: {
+    color: "#4b5563",
+    fontSize: 15,
+    fontWeight: "600",
+  },
   scrollContainer: {
     padding: 24,
-    paddingTop: 32,
-    paddingBottom: 110, // Generous padding to prevent element conflict with the floating button
+    paddingTop: 20,
+    paddingBottom: 40, 
   },
   title: {
     fontSize: 26,
@@ -333,27 +372,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     letterSpacing: -0.2,
-  },
-  floatingBottomRightBack: {
-    position: "absolute",
-    bottom: 24,
-    right: 24,
-    backgroundColor: "#f3f4f6",
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 24,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  floatingBackText: {
-    color: "#374151",
-    fontSize: 14,
-    fontWeight: "700",
-    letterSpacing: -0.1,
   },
 });
