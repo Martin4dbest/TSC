@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { MessageSquare, Sun, Moon } from "lucide-react";
+import { MessageSquare, Sun, Moon, Phone, User, Calendar, CheckCircle } from "lucide-react";
 
 const BASE_URL = "https://tsc-backend-nefz.onrender.com/api/v1";
 const FEEDBACK_URL = `${BASE_URL}/emergency/feedback/all`;
@@ -9,6 +9,9 @@ const FEEDBACK_URL = `${BASE_URL}/emergency/feedback/all`;
 type Feedback = {
   id: number;
   full_name: string;
+  phone?: string | null;
+  phone_number?: string | null; // Multi-fallback schema handling
+  phoneNumber?: string | null;  // Multi-fallback schema handling
   outcome: "rescued" | "helped" | "not_helped";
   feedback: string;
   created_at: string;
@@ -25,6 +28,7 @@ export default function EmergencyFeedbackPage() {
       if (showLoadingState) setLoading(true);
 
       const res = await fetch(FEEDBACK_URL);
+      if (!res.ok) throw new Error("Network response was not ok");
       const data = await res.json();
 
       const normalized: Feedback[] = Array.isArray(data)
@@ -37,7 +41,7 @@ export default function EmergencyFeedbackPage() {
 
       setFeedbacks(normalized);
     } catch (error) {
-      console.error(error);
+      console.error("Dashboard Sync Error:", error);
       setFeedbacks([]);
     } finally {
       if (showLoadingState) setLoading(false);
@@ -59,167 +63,200 @@ export default function EmergencyFeedbackPage() {
   }, []);
 
   const theme = darkMode
-    ? "bg-[#070b14] text-white"
-    : "bg-gray-100 text-gray-900";
+    ? "bg-[#050811] text-slate-100"
+    : "bg-slate-50 text-slate-800";
 
   const card = darkMode
-    ? "bg-[#0d1424] border border-white/10"
-    : "bg-white border border-gray-200";
+    ? "bg-[#0b1120]/80 backdrop-blur-md border border-white/5 shadow-xl shadow-black/20"
+    : "bg-white border border-slate-200 shadow-sm";
 
-  const table = darkMode
-    ? "bg-[#0d1424] border-white/10"
-    : "bg-white border-gray-200";
+  const tableWrapper = darkMode
+    ? "bg-[#0b1120]/60 backdrop-blur-md border border-white/5"
+    : "bg-white border border-slate-200 shadow-sm";
+
+  const tableHeaderStyle = darkMode
+    ? "bg-[#0f182c] text-slate-400 border-b border-white/5 text-[11px] font-semibold tracking-wider uppercase"
+    : "bg-slate-100 text-slate-600 border-b border-slate-200 text-[11px] font-semibold tracking-wider uppercase";
 
   return (
-    <div className={`${theme} min-h-screen p-6 transition-all duration-300`}>
+    <div className={`${theme} min-h-screen p-4 md:p-8 transition-colors duration-300 text-xs`}>
+      <div className="max-w-7xl mx-auto">
+        
+        {/* HEADER */}
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-500/10">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg">
+              <MessageSquare size={16} />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight">
+                Emergency Feedback Control
+              </h1>
+              <p className="text-[11px] text-slate-400 mt-0.5">Real-time civilian post-incident response tracking</p>
+            </div>
+          </div>
 
-      {/* HEADER */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="text-blue-400" />
-          <h1 className="text-2xl font-bold tracking-wide">
-            Emergency Feedback Reports
-          </h1>
+          {/* THEME TOGGLE */}
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-[11px] font-medium transition-all ${
+              darkMode
+                ? "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/5"
+                : "bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300/5"
+            }`}
+          >
+            {darkMode ? <Sun size={12} /> : <Moon size={12} />}
+            {darkMode ? "Light Mode" : "Dark Mode"}
+          </button>
         </div>
 
-        {/* THEME TOGGLE */}
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm transition ${
-            darkMode
-              ? "bg-white/10 hover:bg-white/20"
-              : "bg-black/10 hover:bg-black/20"
-          }`}
-        >
-          {darkMode ? <Sun size={16} /> : <Moon size={16} />}
-          {darkMode ? "Light" : "Dark"}
-        </button>
-      </div>
-
-      {/* LOADING */}
-      {loading ? (
-        <div className="text-gray-400">Loading feedback reports...</div>
-      ) : (
-        <>
-          {/* ANALYTICS CARDS */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-
-            <div className={`${card} p-4 rounded-xl`}>
-              <p className="text-xs opacity-60">Total Feedbacks</p>
-              <h2 className="text-2xl font-bold mt-1">{feedbacks.length}</h2>
+        {/* LOADING */}
+        {loading ? (
+          <div className="flex items-center justify-center min-h-[300px]">
+            <div className="text-[11px] tracking-widest uppercase opacity-50 animate-pulse">
+              Syncing response registers...
             </div>
-
-            <div className={`${card} p-4 rounded-xl`}>
-              <p className="text-xs opacity-60">Rescued</p>
-              <h2 className="text-2xl font-bold text-emerald-400 mt-1">
-                {feedbacks.filter(f => f.outcome === "rescued").length}
-              </h2>
-            </div>
-
-            <div className={`${card} p-4 rounded-xl`}>
-              <p className="text-xs opacity-60">Helped</p>
-              <h2 className="text-2xl font-bold text-blue-400 mt-1">
-                {feedbacks.filter(f => f.outcome === "helped").length}
-              </h2>
-            </div>
-
-            <div className={`${card} p-4 rounded-xl`}>
-              <p className="text-xs opacity-60">Not Helped</p>
-              <h2 className="text-2xl font-bold text-red-400 mt-1">
-                {feedbacks.filter(f => f.outcome === "not_helped").length}
-              </h2>
-            </div>
-
-            <div className={`${card} p-4 rounded-xl`}>
-              <p className="text-xs opacity-60">Satisfaction</p>
-              <h2 className="text-2xl font-bold text-yellow-400 mt-1">
-                {feedbacks.length
-                  ? Math.round(
-                      (feedbacks.filter(f => f.outcome !== "not_helped").length /
-                        feedbacks.length) *
-                        100
-                    )
-                  : 0}
-                %
-              </h2>
-            </div>
-
           </div>
+        ) : (
+          <>
+            {/* ANALYTICS CARDS */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5 mb-6">
 
-          {/* TABLE */}
-          <div className={`${table} rounded-xl overflow-hidden`}>
+              <div className={`${card} p-3 rounded-xl`}>
+                <p className="text-[10px] font-medium tracking-wide uppercase opacity-50">Total Logged</p>
+                <h2 className="text-lg font-bold tracking-tight mt-0.5 text-blue-400">{feedbacks.length}</h2>
+              </div>
 
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/10 text-left">
-                  <th className="p-4">User</th>
-                  <th className="p-4">Outcome</th>
-                  <th className="p-4">Report</th>
-                  <th className="p-4">Date & Time</th>
-                </tr>
-              </thead>
+              <div className={`${card} p-3 rounded-xl`}>
+                <p className="text-[10px] font-medium tracking-wide uppercase opacity-50">Rescued Status</p>
+                <h2 className="text-lg font-bold tracking-tight mt-0.5 text-emerald-400">
+                  {feedbacks.filter(f => f.outcome === "rescued").length}
+                </h2>
+              </div>
 
-              <tbody>
-                {feedbacks.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="p-6 text-center opacity-60">
-                      No feedback reports found
-                    </td>
-                  </tr>
-                ) : (
-                  feedbacks.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="border-b border-white/5 hover:bg-white/5 transition"
-                    >
-                      <td className="p-4 font-medium">
-                        {item.full_name}
-                      </td>
+              <div className={`${card} p-3 rounded-xl`}>
+                <p className="text-[10px] font-medium tracking-wide uppercase opacity-50">Assisted/Helped</p>
+                <h2 className="text-lg font-bold tracking-tight mt-0.5 text-sky-400">
+                  {feedbacks.filter(f => f.outcome === "helped").length}
+                </h2>
+              </div>
 
-                      <td className="p-4">
-                        {item.outcome === "rescued" && (
-                          <span className="text-emerald-400 font-medium">
-                            Rescued
-                          </span>
-                        )}
-                        {item.outcome === "helped" && (
-                          <span className="text-blue-400 font-medium">
-                            Helped
-                          </span>
-                        )}
-                        {item.outcome === "not_helped" && (
-                          <span className="text-red-400 font-medium">
-                            Not Helped
-                          </span>
-                        )}
-                      </td>
+              <div className={`${card} p-3 rounded-xl`}>
+                <p className="text-[10px] font-medium tracking-wide uppercase opacity-50">Unresolved</p>
+                <h2 className="text-lg font-bold tracking-tight mt-0.5 text-rose-400">
+                  {feedbacks.filter(f => f.outcome === "not_helped").length}
+                </h2>
+              </div>
 
-                      <td className="p-4 opacity-80">
-                        {item.feedback}
-                      </td>
+              <div className={`${card} p-3 rounded-xl col-span-2 md:col-span-1`}>
+                <p className="text-[10px] font-medium tracking-wide uppercase opacity-50">Success Rate</p>
+                <h2 className="text-lg font-bold tracking-tight mt-0.5 text-amber-400">
+                  {feedbacks.length
+                    ? Math.round(
+                        (feedbacks.filter(f => f.outcome !== "not_helped").length /
+                          feedbacks.length) *
+                          100
+                      )
+                    : 0}
+                  %
+                </h2>
+              </div>
 
-                      {/* Displaying both formatted local Date and Time */}
-                      <td className="p-4 opacity-60 whitespace-nowrap">
-                        {item.created_at ? (
-                          <>
-                            <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                            <span className="text-xs block text-gray-400">
-                              {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </>
-                        ) : (
-                          "N/A"
-                        )}
-                      </td>
+            </div>
+
+            {/* TABLE CONTAINER */}
+            <div className={`${tableWrapper} rounded-xl overflow-hidden shadow-md`}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr>
+                      <th className={`${tableHeaderStyle} p-3 w-1/4`}><span className="flex items-center gap-1.5"><User size={11}/> Complainant Details</span></th>
+                      <th className={`${tableHeaderStyle} p-3 w-1/6`}><span className="flex items-center gap-1.5"><CheckCircle size={11}/> Resolution Status</span></th>
+                      <th className={`${tableHeaderStyle} p-3 w-5/12`}><span className="flex items-center gap-1.5"><MessageSquare size={11}/> Incident Evaluation / Feedback</span></th>
+                      <th className={`${tableHeaderStyle} p-3 w-1/6`}><span className="flex items-center gap-1.5"><Calendar size={11}/> System Time Record</span></th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  </thead>
 
-          </div>
-        </>
-      )}
+                  <tbody className="divide-y divide-slate-500/10 text-[11px]">
+                    {feedbacks.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center text-slate-400 font-medium tracking-wide">
+                          No active monitoring feedback responses detected.
+                        </td>
+                      </tr>
+                    ) : (
+                      feedbacks.map((item) => (
+                        <tr
+                          key={item.id}
+                          className={`transition-colors ${
+                            darkMode ? "hover:bg-white/[0.02]" : "hover:bg-slate-100/60"
+                          }`}
+                        >
+                          {/* User Metadata */}
+                          <td className="p-3 align-top">
+                            <div className="font-semibold text-slate-200 dark:text-white text-[12px]">
+                              {item.full_name || "Unknown User"}
+                            </div>
+                            <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-1">
+                              <Phone size={9} className="opacity-70 text-blue-400" />
+                              <span className="font-mono tracking-tight">
+                                {item.phone_number || item.phone || item.phoneNumber || "No dynamic record"}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Outcome Indicators */}
+                          <td className="p-3 align-top">
+                            {item.outcome === "rescued" && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                Rescued
+                              </span>
+                            )}
+                            {item.outcome === "helped" && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wide uppercase bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                                Helped
+                              </span>
+                            )}
+                            {item.outcome === "not_helped" && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wide uppercase bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                Unresolved
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Raw Narrative Text */}
+                          <td className="p-3 text-slate-300 dark:text-slate-400 leading-relaxed font-normal text-[11px] align-top whitespace-pre-line">
+                            {item.feedback}
+                          </td>
+
+                          {/* Laptop Localized System Clock Time Stamp */}
+                          <td className="p-3 align-top whitespace-nowrap text-slate-400">
+                            {item.created_at ? (
+                              <div className="space-y-0.5">
+                                <div className="font-medium tracking-tight">
+                                  {new Date(item.created_at).toLocaleDateString()}
+                                </div>
+                                <div className="text-[10px] text-slate-500 tracking-wide font-mono">
+                                  {new Date(item.created_at).toLocaleTimeString([], { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit'
+                                  })}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-600 font-mono">DATA_ERR</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

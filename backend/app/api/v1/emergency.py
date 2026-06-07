@@ -34,6 +34,7 @@ class FeedbackRequest(BaseModel):
     emergency_id: int | None = None
     user_id: int
     full_name: str
+    phone: str | None = None  
     outcome: str
     feedback: str
 
@@ -51,7 +52,9 @@ def safe_address(lat, lon):
 
 
 def nigeria_time():
-    return datetime.now(timezone.utc) + timedelta(hours=1)
+    # ✅ Fix: Use an explicit timezone offset object instead of altering the raw UTC calculation math.
+    # This ensures the output is properly flagged as UTC+1.
+    return datetime.now(timezone(timedelta(hours=1)))
 
 
 # =========================
@@ -172,7 +175,7 @@ Longitude:
 
         return {
             "success": True,
-            "should_refresh": True,  # Signal frontend page to refresh 
+            "should_refresh": True,  
             "alert": alert
         }
 
@@ -287,7 +290,7 @@ Emergency Message:
 
         return {
             "success": True,
-            "should_refresh": True,  # Signal frontend page to refresh
+            "should_refresh": True,  
             "alert_id": alert.id,
             "address": final_address,
             "message": alert.message,
@@ -437,7 +440,6 @@ def get_stats(db: Session = Depends(get_db)):
 @router.post("/feedback")
 def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
     try:
-        # ✅ SAFE emergency_id handling
         emergency_id = payload.emergency_id
 
         if emergency_id is not None:
@@ -446,14 +448,23 @@ def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
             ).first()
 
             if not emergency:
-                emergency_id = None  # 🔥 IMPORTANT SAFE FALLBACK
+                emergency_id = None
+
+        final_phone = payload.phone
+        if not final_phone:
+            user = db.query(User).filter(User.id == payload.user_id).first()
+            if user:
+                final_phone = user.phone
 
         feedback = EmergencyFeedback(
-            emergency_id=emergency_id,  # SAFE NOW
+            emergency_id=emergency_id,
             user_id=payload.user_id,
             full_name=payload.full_name,
+            phone=final_phone,  
             outcome=payload.outcome,
             feedback=payload.feedback,
+            # ✅ Save clean timezone objects directly into new feedback columns
+            created_at=nigeria_time()
         )
 
         db.add(feedback)
@@ -462,7 +473,7 @@ def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
 
         return {
             "success": True,
-            "should_refresh": True,  # Signal frontend page to refresh
+            "should_refresh": True,
             "message": "Feedback submitted successfully",
             "id": feedback.id
         }
@@ -480,17 +491,27 @@ def get_all_feedback(db: Session = Depends(get_db)):
             EmergencyFeedback.id.desc()
         ).all()
 
-        return [
-            {
+        result = []
+        for f in feedbacks:
+            phone_record = getattr(f, 'phone', None)
+            if not phone_record:
+                phone_record = f.user.phone if (hasattr(f, 'user') and f.user and getattr(f.user, 'phone', None)) else None
+
+            # ✅ Fallback to make sure created_at is valid or use current time
+            time_record = getattr(f, 'created_at', None) or nigeria_time()
+
+            result.append({
                 "id": f.id,
                 "user_id": f.user_id,
                 "full_name": f.full_name,
+                "phone": phone_record,  
                 "outcome": f.outcome,
                 "feedback": f.feedback,
-                "created_at": f.created_at.isoformat() if f.created_at else None,
-            }
-            for f in feedbacks
-        ]
+                "created_at": time_record.isoformat(),
+            })
+
+        return result
 
     except Exception as e:
+        print("🔥 FETCH FEEDBACK ERROR:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
