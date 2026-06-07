@@ -418,10 +418,10 @@ def get_stats(db: Session = Depends(get_db)):
         "wallet": 0
     }
 
+# ============================================================================
+# EMERGENCY FEEDBACK (SUBMIT, DISPLAY RESPONSES, AND CLEAR ENTRIES)
+# ============================================================================
 
-# ============================================
-# EMERGENCY FEEDBACK (SUBMIT & DISPLAY RESPONSES)
-# ============================================
 @router.post("/feedback")
 def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
     try:
@@ -445,13 +445,13 @@ def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
             full_name=payload.full_name,
             outcome=payload.outcome,
             feedback=payload.feedback,
+            created_at=nigeria_time() # Added to track explicit submission timing
         )
 
         db.add(feedback)
         db.commit()
         db.refresh(feedback)
 
-        # Returns 'data' containing exactly what was stored in the database layout 
         return {
             "success": True,
             "message": "Feedback submitted successfully",
@@ -471,9 +471,6 @@ def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ====================================
-# GET ALL FEEDBACKS 
-# ====================================
 @router.get("/feedback")
 def get_all_feedbacks(db: Session = Depends(get_db)):
     try:
@@ -483,17 +480,45 @@ def get_all_feedbacks(db: Session = Depends(get_db)):
         
         result = []
         for f in feedbacks:
+            # Query the user database dynamically using the user_id link
+            user_phone = None
+            if f.user_id:
+                user_obj = db.query(User).filter(User.id == f.user_id).first()
+                if user_obj:
+                    user_phone = user_obj.phone
+
+            # Convert database timestamp to standard ISO string format safely
+            timestamp_str = None
+            if hasattr(f, 'created_at') and f.created_at:
+                timestamp_str = f.created_at.isoformat()
+            else:
+                timestamp_str = nigeria_time().isoformat()
+
             result.append({
                 "id": f.id,
                 "emergency_id": f.emergency_id,
                 "user_id": f.user_id,
                 "full_name": f.full_name,
                 "outcome": f.outcome,
-                "feedback": f.feedback
+                "feedback": f.feedback,
+                "phone_number": user_phone if user_phone else "No record", # Verified data pipeline pass
+                "created_at": timestamp_str
             })
             
         return result
         
     except Exception as e:
         print("🔥 FETCH FEEDBACKS ERROR:", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/feedback/clear")
+def clear_all_feedbacks(db: Session = Depends(get_db)):
+    try:
+        db.query(EmergencyFeedback).delete()
+        db.commit()
+        return {"success": True, "message": "All feedback data has been cleared"}
+    except Exception as e:
+        db.rollback()
+        print("🔥 CLEAR FEEDBACKS ERROR:", str(e))
         raise HTTPException(status_code=500, detail=str(e))

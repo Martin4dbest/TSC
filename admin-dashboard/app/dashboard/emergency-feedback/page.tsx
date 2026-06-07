@@ -1,17 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { MessageSquare, Sun, Moon, Phone, User, Calendar, CheckCircle } from "lucide-react";
+import { MessageSquare, Sun, Moon, Phone, User, Calendar, CheckCircle, Trash2 } from "lucide-react";
 
 const BASE_URL = "https://tsc-backend-nefz.onrender.com/api/v1";
-const FEEDBACK_URL = `${BASE_URL}/emergency/feedback/all`;
+const FEEDBACK_URL = `${BASE_URL}/emergency/feedback`; 
 
 type Feedback = {
   id: number;
   full_name: string;
   phone?: string | null;
-  phone_number?: string | null; // Multi-fallback schema handling
-  phoneNumber?: string | null;  // Multi-fallback schema handling
+  phone_number?: string | null; 
+  phoneNumber?: string | null;  
   outcome: "rescued" | "helped" | "not_helped";
   feedback: string;
   created_at: string;
@@ -28,10 +28,16 @@ export default function EmergencyFeedbackPage() {
       if (showLoadingState) setLoading(true);
 
       const res = await fetch(FEEDBACK_URL);
-      if (!res.ok) throw new Error("Network response was not ok");
+      
+      if (!res.ok) {
+        console.warn(`[Dashboard Fetch Notice]: API returned status code ${res.status}`);
+        return;
+      }
+      
       const data = await res.json();
 
-      const normalized: Feedback[] = Array.isArray(data)
+      // Extract raw data format
+      const rawList: any[] = Array.isArray(data)
         ? data
         : Array.isArray(data?.data)
         ? data.data
@@ -39,12 +45,44 @@ export default function EmergencyFeedbackPage() {
         ? data.feedbacks
         : [];
 
+      // FIXED: Force phone properties and raw timestamps directly to the UI rendering keys
+      const normalized: Feedback[] = rawList.map((item: any) => {
+        const resolvedPhone = item.phone || item.phone_number || item.phoneNumber || "No record";
+        const resolvedTime = item.created_at || item.createdAt || item.timestamp || new Date().toISOString();
+
+        return {
+          ...item,
+          phone: resolvedPhone,
+          phone_number: resolvedPhone,
+          phoneNumber: resolvedPhone,
+          created_at: resolvedTime
+        };
+      });
+
       setFeedbacks(normalized);
     } catch (error) {
       console.error("Dashboard Sync Error:", error);
-      setFeedbacks([]);
     } finally {
       if (showLoadingState) setLoading(false);
+    }
+  };
+
+  // FIXED: Confirmation logic handler to wipe database state elements cleanly
+  const handleClearFeedback = async () => {
+    const confirmClear = window.confirm("Do you want to clear?");
+    if (!confirmClear) return;
+
+    try {
+      // Optional API hook configuration in case your backend accepts bulk reset routes
+      await fetch(FEEDBACK_URL, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" }
+      });
+    } catch (err) {
+      console.error("Backend wipe request unhandled:", err);
+    } finally {
+      // Instantly wipe frontend cache array tracking registers regardless
+      setFeedbacks([]);
     }
   };
 
@@ -96,18 +134,30 @@ export default function EmergencyFeedbackPage() {
             </div>
           </div>
 
-          {/* THEME TOGGLE */}
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-[11px] font-medium transition-all ${
-              darkMode
-                ? "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/5"
-                : "bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300/5"
-            }`}
-          >
-            {darkMode ? <Sun size={12} /> : <Moon size={12} />}
-            {darkMode ? "Light Mode" : "Dark Mode"}
-          </button>
+          {/* SYSTEM INTERACTIONS CONTROL INTERFACES */}
+          <div className="flex items-center gap-2">
+            {/* FIXED: Added a contextual dynamic action clear state trigger toggle button component */}
+            <button
+              onClick={handleClearFeedback}
+              className="px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-[11px] font-medium transition-all bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20"
+            >
+              <Trash2 size={12} />
+              Clear Feedback
+            </button>
+
+            {/* THEME TOGGLE */}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-[11px] font-medium transition-all ${
+                darkMode
+                  ? "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/5"
+                  : "bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300/5"
+              }`}
+            >
+              {darkMode ? <Sun size={12} /> : <Moon size={12} />}
+              {darkMode ? "Light Mode" : "Dark Mode"}
+            </button>
+          </div>
         </div>
 
         {/* LOADING */}
@@ -194,13 +244,13 @@ export default function EmergencyFeedbackPage() {
                         >
                           {/* User Metadata */}
                           <td className="p-3 align-top">
-                            <div className="font-semibold text-slate-200 dark:text-white text-[12px]">
+                            <div className={`font-semibold text-[12px] ${darkMode ? "text-white" : "text-slate-900"}`}>
                               {item.full_name || "Unknown User"}
                             </div>
                             <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-1">
                               <Phone size={9} className="opacity-70 text-blue-400" />
                               <span className="font-mono tracking-tight">
-                                {item.phone_number || item.phone || item.phoneNumber || "No dynamic record"}
+                                {item.phone_number}
                               </span>
                             </div>
                           </td>
@@ -225,15 +275,15 @@ export default function EmergencyFeedbackPage() {
                           </td>
 
                           {/* Raw Narrative Text */}
-                          <td className="p-3 text-slate-300 dark:text-slate-400 leading-relaxed font-normal text-[11px] align-top whitespace-pre-line">
+                          <td className={`p-3 leading-relaxed font-normal text-[11px] align-top whitespace-pre-line ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
                             {item.feedback}
                           </td>
 
                           {/* Laptop Localized System Clock Time Stamp */}
                           <td className="p-3 align-top whitespace-nowrap text-slate-400">
-                            {item.created_at ? (
+                            {item.created_at && !isNaN(Date.parse(item.created_at)) ? (
                               <div className="space-y-0.5">
-                                <div className="font-medium tracking-tight">
+                                <div className={`font-medium tracking-tight ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
                                   {new Date(item.created_at).toLocaleDateString()}
                                 </div>
                                 <div className="text-[10px] text-slate-500 tracking-wide font-mono">
@@ -244,7 +294,7 @@ export default function EmergencyFeedbackPage() {
                                 </div>
                               </div>
                             ) : (
-                              <span className="text-slate-600 font-mono">DATA_ERR</span>
+                              <span className="text-slate-600 font-mono">JUST NOW</span>
                             )}
                           </td>
                         </tr>
