@@ -13,8 +13,7 @@ from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.models.user import User, UserRole
-from app.models.emergency import EmergencyAlert
-from app.models.emergency import EmergencyFeedback
+from app.models.emergency import EmergencyAlert, EmergencyFeedback
 
 from app.services.notifications import (
     send_email,
@@ -456,4 +455,27 @@ def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         print("FEEDBACK ERROR:", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/feedback/all")
+def get_all_feedback(db: Session = Depends(get_db)):
+    try:
+        feedbacks = db.query(EmergencyFeedback).order_by(
+            EmergencyFeedback.id.desc()
+        ).all()
+
+        return [
+            {
+                "id": f.id,
+                "user_id": f.user_id,
+                "full_name": f.full_name,
+                "outcome": f.outcome,
+                "feedback": f.feedback,
+                "created_at": f.created_at.isoformat() if f.created_at else None,
+            }
+            for f in feedbacks
+        ]
+
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
