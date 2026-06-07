@@ -28,7 +28,6 @@ router = APIRouter()
 
 connected_clients: list[WebSocket] = []
 
-
 # =========================
 # SCHEMAS (DATA VALIDATION)
 # =========================
@@ -420,27 +419,13 @@ def get_stats(db: Session = Depends(get_db)):
 
 
 # =========================
-# EMERGENCY FEEDBACK (SUBMIT)
+# EMERGENCY FEEDBACK
 # =========================
 @router.post("/feedback")
 def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
     try:
-        final_emergency_id = payload.emergency_id
-
-        if not final_emergency_id:
-            latest_alert = (
-                db.query(EmergencyAlert)
-                .filter(EmergencyAlert.user_id == payload.user_id)
-                .order_by(EmergencyAlert.id.desc())
-                .first()
-            )
-            if latest_alert:
-                final_emergency_id = latest_alert.id
-            else:
-                final_emergency_id = None
-
         feedback = EmergencyFeedback(
-            emergency_id=final_emergency_id,
+            emergency_id=payload.emergency_id,
             user_id=payload.user_id,
             full_name=payload.full_name,
             outcome=payload.outcome,
@@ -459,33 +444,4 @@ def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
 
     except Exception as e:
         db.rollback()
-        print("🔥 BACKEND FEEDBACK CRASH:", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ====================================
-# NEW ADDITION: GET ALL FEEDBACKS
-# ====================================
-@router.get("/feedback")
-def get_all_feedbacks(db: Session = Depends(get_db)):
-    try:
-        feedbacks = db.query(EmergencyFeedback).order_by(
-            EmergencyFeedback.id.desc()
-        ).all()
-        
-        result = []
-        for f in feedbacks:
-            result.append({
-                "id": f.id,
-                "emergency_id": f.emergency_id,
-                "user_id": f.user_id,
-                "full_name": f.full_name,
-                "outcome": f.outcome,
-                "feedback": f.feedback
-            })
-            
-        return result  # Returns a clean array [] that Next.js expects
-        
-    except Exception as e:
-        print("🔥 FETCH FEEDBACKS ERROR:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
