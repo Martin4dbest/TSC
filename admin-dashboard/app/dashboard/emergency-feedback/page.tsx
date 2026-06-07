@@ -19,32 +19,43 @@ export default function EmergencyFeedbackPage() {
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
 
+  // Core background fetch logic
+  const fetchFeedbacks = async (showLoadingState = false) => {
+    try {
+      if (showLoadingState) setLoading(true);
+
+      const res = await fetch(FEEDBACK_URL);
+      const data = await res.json();
+
+      const normalized: Feedback[] = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.feedbacks)
+        ? data.feedbacks
+        : [];
+
+      setFeedbacks(normalized);
+    } catch (error) {
+      console.error(error);
+      setFeedbacks([]);
+    } finally {
+      if (showLoadingState) setLoading(false);
+    }
+  };
+
+  // Initial render fetch
   useEffect(() => {
-    const fetchFeedbacks = async () => {
-      try {
-        setLoading(true);
+    fetchFeedbacks(true);
+  }, []);
 
-        const res = await fetch(FEEDBACK_URL);
-        const data = await res.json();
+  // Live Auto-Refresh: Polls database silently every 5 seconds for new reports
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchFeedbacks(false);
+    }, 5000);
 
-        const normalized: Feedback[] = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.data)
-          ? data.data
-          : Array.isArray(data?.feedbacks)
-          ? data.feedbacks
-          : [];
-
-        setFeedbacks(normalized);
-      } catch (error) {
-        console.error(error);
-        setFeedbacks([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFeedbacks();
+    return () => clearInterval(interval);
   }, []);
 
   const theme = darkMode
@@ -144,7 +155,7 @@ export default function EmergencyFeedbackPage() {
                   <th className="p-4">User</th>
                   <th className="p-4">Outcome</th>
                   <th className="p-4">Report</th>
-                  <th className="p-4">Date</th>
+                  <th className="p-4">Date & Time</th>
                 </tr>
               </thead>
 
@@ -187,8 +198,18 @@ export default function EmergencyFeedbackPage() {
                         {item.feedback}
                       </td>
 
-                      <td className="p-4 opacity-60">
-                        {new Date(item.created_at).toLocaleDateString()}
+                      {/* Displaying both formatted local Date and Time */}
+                      <td className="p-4 opacity-60 whitespace-nowrap">
+                        {item.created_at ? (
+                          <>
+                            <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                            <span className="text-xs block text-gray-400">
+                              {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </>
+                        ) : (
+                          "N/A"
+                        )}
                       </td>
                     </tr>
                   ))

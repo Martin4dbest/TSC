@@ -77,6 +77,10 @@ def trigger_sos(payload: dict, db: Session = Depends(get_db)):
         emergency_type = payload.get("emergency_type", "General Emergency")
         message = payload.get("message", "🚨 Emergency Alert")
 
+        # Get current precise Nigeria Time
+        current_time = nigeria_time()
+        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S WAT")
+
         # Save emergency
         sos = EmergencyAlert(
             user_id=user_id,
@@ -89,7 +93,7 @@ def trigger_sos(payload: dict, db: Session = Depends(get_db)):
             message=message,
             status="active",
             emergency_type=emergency_type,
-            created_at=nigeria_time()
+            created_at=current_time
         )
 
         db.add(sos)
@@ -97,10 +101,13 @@ def trigger_sos(payload: dict, db: Session = Depends(get_db)):
         db.refresh(sos)
 
         # =========================
-        # ADMIN MESSAGE (FULL DETAILS)
+        # ADMIN MESSAGE (WITH TIMESTAMP)
         # =========================
         admin_message = f"""
 🚨 CRITICAL EMERGENCY ALERT
+
+Time of Incident:
+{formatted_time}
 
 Emergency Unit:
 {emergency_type}
@@ -165,6 +172,7 @@ Longitude:
 
         return {
             "success": True,
+            "should_refresh": True,  # Signal frontend page to refresh 
             "alert": alert
         }
 
@@ -195,6 +203,9 @@ async def share_location(
             longitude
         )
 
+        current_time = nigeria_time()
+        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S WAT")
+
         alert = EmergencyAlert(
             user_id=user_id,
             full_name=full_name,
@@ -208,7 +219,7 @@ async def share_location(
                 or "📍 Live location shared"
             ),
             status="active",
-            created_at=nigeria_time()
+            created_at=current_time
         )
 
         db.add(alert)
@@ -217,6 +228,8 @@ async def share_location(
 
         admin_message = f"""
 🚨 EMERGENCY ALERT
+
+Time Shared: {formatted_time}
 
 User: {full_name}
 Phone: {phone or "N/A"}
@@ -274,6 +287,7 @@ Emergency Message:
 
         return {
             "success": True,
+            "should_refresh": True,  # Signal frontend page to refresh
             "alert_id": alert.id,
             "address": final_address,
             "message": alert.message,
@@ -448,6 +462,7 @@ def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
 
         return {
             "success": True,
+            "should_refresh": True,  # Signal frontend page to refresh
             "message": "Feedback submitted successfully",
             "id": feedback.id
         }
