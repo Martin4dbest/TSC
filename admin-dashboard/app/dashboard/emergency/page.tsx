@@ -102,16 +102,34 @@ export default function EmergencyPage() {
 
   const clearAlerts = async () => {
   try {
+    const token = localStorage.getItem("token");
+
     const res = await fetch(`${BASE_URL}/emergency/clear`, {
       method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
     });
 
-    if (!res.ok) return;
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Clear failed:", res.status, errText);
+      alert("Failed to clear alerts");
+      return;
+    }
 
-    setAlerts([]);
+    const data = await res.json();
+    console.log("CLEAR RESPONSE:", data);
+
+    // IMPORTANT: refresh from backend (not just empty local state)
+    await fetchAlerts();
+
     setShowClearConfirm(false);
+    setAlerts([]);
   } catch (err) {
-    console.error(err);
+    console.error("Clear error:", err);
+    alert("Network error while clearing alerts");
   }
 };
 
