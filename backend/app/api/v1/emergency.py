@@ -380,19 +380,25 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # =========================
 # CLEAR ALERTS
+from sqlalchemy import delete
 
 @router.delete("/clear")
 def clear_all_emergencies(db: Session = Depends(get_db)):
     try:
-        deleted = db.query(EmergencyAlert).delete(synchronize_session=False)
+        stmt = delete(EmergencyAlert)
+        result = db.execute(stmt)
+
         db.commit()
+
         return {
             "success": True,
-            "deleted": deleted
+            "deleted": result.rowcount
         }
+
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
 # =========================
 # STATS
 # =========================
