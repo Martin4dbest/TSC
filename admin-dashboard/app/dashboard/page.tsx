@@ -252,168 +252,110 @@ export default function Dashboard() {
       {/* =================================================
            SIDEBAR
       ================================================= */}
-      <aside
-        className={`w-56 fixed h-screen p-4 border-r flex flex-col justify-between transition-all duration-200 z-10 ${sidebar}`}
-      >
-        <div>
-          {/* LOGO */}
-          <div className="flex items-center gap-2.5 px-1.5 py-2.5 mb-5 border-b border-slate-800/40">
-            <ShieldCheck
-              size={15}
-              className="text-blue-500"
-            />
+      <aside className={`w-56 fixed h-screen p-4 border-r flex flex-col z-10 ${sidebar}`}>
 
-            <h1 className="font-bold tracking-wider text-[11px] text-slate-200">
-              TSC CONTROL
-            </h1>
-          </div>
+  {/* TOP SECTION */}
+  <div className="flex flex-col flex-1 min-h-0">
 
-          {/* NAVIGATION */}
-          <nav className="space-y-0.5">
-            <Nav
-              icon={<LayoutDashboard size={13} />}
-              label="Overview"
-              color="text-blue-400"
-              route="/dashboard"
-              active
-            />
+    {/* LOGO */}
+    <h1 className="font-bold tracking-wider text-[11px] text-slate-200 mb-3">
+      TSC CONTROL
+    </h1>
 
-            <Nav
-              icon={<Map size={13} />}
-              label="Tracking"
-              color="text-emerald-400"
-              route="/dashboard/tracking"
-            />
+    {/* NAV (FIXED SCROLL AREA) */}
+    <nav className="space-y-0.5 flex-1 overflow-y-auto pr-1">
 
-            <Nav
-              icon={<ShieldAlert size={13} />}
-              label="Emergency"
-              color="text-rose-400"
-              route="/dashboard/emergency"
-            />
+      {/* ALL YOUR NAV ITEMS STAY EXACTLY SAME */}
+      <Nav
+        icon={<LayoutDashboard size={13} />}
+        label="Overview"
+        color="text-blue-400"
+        route="/dashboard"
+        active
+      />
 
-            {/* ✅ NEW COMPONENT ADDED HERE */}
-            <Nav
-              icon={<MessageSquare size={13} />}
-              label="Emergency Feedback Reports"
-              color="text-yellow-400"
-              route="/dashboard/emergency-feedback"
-            />
+      <Nav
+        icon={<Map size={13} />}
+        label="Tracking"
+        color="text-emerald-400"
+        route="/dashboard/tracking"
+      />
 
-            <Nav
-              icon={<Users size={13} />}
-              label="Users"
-              color="text-violet-400"
-              route="/dashboard/users"
-            />
+      <Nav
+        icon={<ShieldAlert size={13} />}
+        label="Emergency"
+        color="text-rose-400"
+        route="/dashboard/emergency"
+      />
 
-            {/* FINANCE */}
-            <p className="text-[9px] font-bold text-slate-500 px-2 pt-4 pb-1 uppercase tracking-widest">
-              Finance
-            </p>
+      <Nav
+        icon={<MessageSquare size={13} />}
+        label="Emergency Feedback Reports"
+        color="text-yellow-400"
+        route="/dashboard/emergency-feedback"
+      />
 
-            <Nav
-              icon={<Wallet size={13} />}
-              label="Wallet"
-              color="text-amber-400"
-              route="/dashboard/wallet"
-            />
+      <Nav
+        icon={<Users size={13} />}
+        label="Users"
+        color="text-violet-400"
+        route="/dashboard/users"
+      />
 
-            <Nav
-              icon={<CreditCard size={13} />}
-              label="Payments"
-              color="text-fuchsia-400"
-              route="/dashboard/payments"
-            />
+      <p className="text-[9px] font-bold text-slate-500 px-2 pt-4 pb-1 uppercase tracking-widest">
+        Finance
+      </p>
 
-            {/* SYSTEM */}
-            <p className="text-[9px] font-bold text-slate-500 px-2 pt-4 pb-1 uppercase tracking-widest">
-              System
-            </p>
+      <Nav icon={<Wallet size={13} />} label="Wallet" color="text-amber-400" route="/dashboard/wallet" />
+      <Nav icon={<CreditCard size={13} />} label="Payments" color="text-fuchsia-400" route="/dashboard/payments" />
 
-            <Nav
-              icon={<BarChart3 size={13} />}
-              label="Analytics"
-              color="text-cyan-400"
-              route="/dashboard/analytics"
-            />
+      <p className="text-[9px] font-bold text-slate-500 px-2 pt-4 pb-1 uppercase tracking-widest">
+        System
+      </p>
 
-            <Nav
-              icon={<History size={13} />}
-              label="Logs"
-              color="text-orange-400"
-              route="/dashboard/logs"
-            />
+      <Nav icon={<BarChart3 size={13} />} label="Analytics" color="text-cyan-400" route="/dashboard/analytics" />
+      <Nav icon={<History size={13} />} label="Logs" color="text-orange-400" route="/dashboard/logs" />
 
-            {/* SUPER ADMIN */}
-            {role === "superadmin" && (
-              <>
-                <p className="text-[9px] font-bold text-rose-400 px-2 pt-4 pb-1 uppercase tracking-widest">
-                  Management
-                </p>
+      {role === "superadmin" && (
+        <>
+          <p className="text-[9px] font-bold text-rose-400 px-2 pt-4 pb-1 uppercase tracking-widest">
+            Management
+          </p>
 
-                <Nav
-                  icon={<Lock size={13} />}
-                  label="Admin"
-                  color="text-rose-500"
-                  route="/dashboard/admin"
-                />
+          <Nav icon={<Lock size={13} />} label="Admin" color="text-rose-500" route="/dashboard/admin" />
+          <Nav icon={<ServerCog size={13} />} label="Security" color="text-emerald-400" route="/dashboard/security" />
+        </>
+      )}
 
-                <Nav
-                  icon={<ServerCog size={13} />}
-                  label="Security"
-                  color="text-emerald-400"
-                  route="/dashboard/security"
-                />
-              </>
-            )}
+      <div className="pt-2">
+        <Nav icon={<Settings size={13} />} label="Settings" color="text-slate-400" route="/dashboard/settings" />
+      </div>
 
-            {/* SETTINGS */}
-            <div className="pt-2">
-              <Nav
-                icon={<Settings size={13} />}
-                label="Settings"
-                color="text-slate-400"
-                route="/dashboard/settings"
-              />
-            </div>
-          </nav>
-        </div>
+    </nav>
+  </div>
 
-        {/* =================================================
-            BOTTOM PANEL
-        ================================================= */}
-        <div className="space-y-1 pt-3 border-t border-slate-800/50">
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="w-full flex items-center gap-2 p-2 rounded hover:bg-slate-800/30 text-[11px] font-medium transition-colors text-slate-400 hover:text-slate-200"
-          >
-            {darkMode ? (
-              <Sun
-                size={12}
-                className="text-amber-400"
-              />
-            ) : (
-              <Moon
-                size={12}
-                className="text-indigo-600"
-              />
-            )}
+  {/* BOTTOM SECTION (ALWAYS VISIBLE NOW) */}
+  <div className="space-y-1 pt-3 border-t border-slate-800/50 shrink-0">
 
-            Theme
-          </button>
+    <button
+      onClick={() => setDarkMode(!darkMode)}
+      className="w-full flex items-center gap-2 p-2 rounded hover:bg-slate-800/30 text-[11px] text-slate-400"
+    >
+      {darkMode ? <Sun size={12} /> : <Moon size={12} />}
+      Theme
+    </button>
 
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-2 p-2 rounded text-rose-400 hover:bg-rose-500/10 text-[11px] font-medium transition-colors"
-          >
-            <LogOut size={12} />
+    <button
+      onClick={handleLogout}
+      className="w-full flex items-center gap-2 p-2 rounded text-rose-400 hover:bg-rose-500/10 text-[11px]"
+    >
+      <LogOut size={12} />
+      Logout
+    </button>
 
-            Logout
-          </button>
-        </div>
-      </aside>
+  </div>
 
+</aside>
       {/* =================================================
           MAIN CONTENT
       ================================================= */}
