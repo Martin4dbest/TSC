@@ -26,7 +26,8 @@ os.makedirs("uploads", exist_ok=True)
 os.makedirs("uploads/screenshots", exist_ok=True)
 
 
-Base.metadata.create_all(bind=engine)
+if os.getenv("ENV") == "development":
+    Base.metadata.create_all(bind=engine)
 
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

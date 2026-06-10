@@ -1,29 +1,42 @@
-# backend/app/db/session.py
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
-from app.core.config import settings
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
+import os
 
 # -------------------------
-# DATABASE ENGINE
+# LOAD ENV FILE
+# -------------------------
+load_dotenv()
+
+# -------------------------
+# DATABASE URL (SAFE CHECK)
+# -------------------------
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL is missing. Please set it in your environment or .env file."
+    )
+
+# -------------------------
+# ENGINE
 # -------------------------
 engine = create_engine(
-    settings.DATABASE_URL,
-
-    # IMPORTANT FIXES
-    pool_pre_ping=True,
-    pool_recycle=300,
-
-    # OPTIONAL OPTIMIZATION
-    pool_size=10,
-    max_overflow=20,
-
-    echo=True,
-    future=True
+    DATABASE_URL,
+    pool_pre_ping=True
 )
 
 # -------------------------
-# SESSION FACTORY
+# FORCE PUBLIC SCHEMA (NEON FIX)
+# -------------------------
+@event.listens_for(engine, "connect")
+def set_search_path(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("SET search_path TO public")
+    cursor.close()
+
+# -------------------------
+# SESSION
 # -------------------------
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -37,17 +50,11 @@ SessionLocal = sessionmaker(
 Base = declarative_base()
 
 # -------------------------
-# DB DEPENDENCY
+# DEPENDENCY
 # -------------------------
 def get_db():
-    """
-    FastAPI database dependency
-    """
-
-    db: Session = SessionLocal()
-
+    db = SessionLocal()
     try:
         yield db
-
     finally:
         db.close()
