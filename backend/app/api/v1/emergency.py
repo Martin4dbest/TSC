@@ -380,17 +380,19 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # =========================
 # CLEAR ALERTS
-# =========================
+
 @router.delete("/clear")
 def clear_all_emergencies(db: Session = Depends(get_db)):
-    deleted = db.query(EmergencyAlert).delete()
-    db.commit()
-    return {
-        "success": True,
-        "deleted": deleted
-    }
-
-
+    try:
+        deleted = db.query(EmergencyAlert).delete(synchronize_session=False)
+        db.commit()
+        return {
+            "success": True,
+            "deleted": deleted
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 # =========================
 # STATS
 # =========================
