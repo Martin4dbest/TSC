@@ -49,7 +49,11 @@ export default function EmergencyPage() {
 
   const fetchAlerts = async () => {
     try {
-      const res = await fetch(API_URL, { cache: "no-store" });
+      const token = localStorage.getItem("token");
+      const res = await fetch(API_URL, { 
+        cache: "no-store",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       const data = await res.json();
       const formatted: Alert[] = (Array.isArray(data) ? data : data?.data || []).map(
         (item: any) => ({
@@ -81,9 +85,13 @@ export default function EmergencyPage() {
   }, []);
 
   const updateStatus = async (id: number, payload: any) => {
+    const token = localStorage.getItem("token");
     await fetch(`${UPDATE_URL}/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
       body: JSON.stringify(payload),
     });
     await fetchAlerts();
@@ -93,12 +101,19 @@ export default function EmergencyPage() {
   };
 
   const clearAlerts = async () => {
-    await fetch(`${BASE_URL}/emergency/clear`, {
+  try {
+    const res = await fetch(`${BASE_URL}/emergency/clear`, {
       method: "DELETE",
     });
+
+    if (!res.ok) return;
+
     setAlerts([]);
     setShowClearConfirm(false);
-  };
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   const getAccent = (risk: string) => {
     switch (risk) {
@@ -130,7 +145,6 @@ export default function EmergencyPage() {
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 p-6">
-      {/* HEADER */}
       <div className="flex justify-between items-center border-b border-zinc-800 pb-4 mb-6">
         <div className="flex items-center gap-2">
           <ShieldAlert className="text-red-500" size={20} />
@@ -138,7 +152,6 @@ export default function EmergencyPage() {
         </div>
 
         <div className="flex gap-4 items-center">
-          {/* LIVE BEACON INDICATOR */}
           <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded">
             <span className="relative flex h-2 w-2">
               {status === "LIVE" ? (
@@ -158,7 +171,6 @@ export default function EmergencyPage() {
             </span>
           </div>
 
-          {/* CLEAR BUTTON */}
           <button
             onClick={() => setShowClearConfirm(true)}
             className="flex items-center gap-1.5 text-xs bg-red-950/30 text-red-400 hover:bg-red-950/50 px-3 py-1.5 rounded border border-red-500/20 transition-colors"
@@ -168,7 +180,6 @@ export default function EmergencyPage() {
         </div>
       </div>
 
-      {/* ALERTS FEED */}
       <div className="space-y-4">
         {alerts.map((a) => (
           <div key={a.id} className={`p-4 rounded border ${getAccent(a.risk_level)}`}>
@@ -179,7 +190,6 @@ export default function EmergencyPage() {
               <span className="text-xs text-zinc-500">{a.time}</span>
             </div>
 
-            {/* MESSAGE RED BADGE */}
             <div className="mt-3">
               <span className="inline-block bg-red-950/40 text-red-300 border border-red-500/20 px-2 py-1 rounded text-xs">
                 {a.message}
@@ -203,33 +213,21 @@ export default function EmergencyPage() {
               </p>
             )}
 
-            {/* ACTIONS */}
             <div className="flex gap-2 mt-4 pt-2 border-t border-zinc-900">
               <button
-                onClick={() => {
-                  setActiveAlert(a);
-                  setModalType("dispatch");
-                }}
+                onClick={() => { setActiveAlert(a); setModalType("dispatch"); }}
                 className="text-xs px-3 py-1 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 rounded transition-colors"
               >
                 Dispatch
               </button>
-
               <button
-                onClick={() => {
-                  setActiveAlert(a);
-                  setModalType("resolve");
-                }}
+                onClick={() => { setActiveAlert(a); setModalType("resolve"); }}
                 className="text-xs px-3 py-1 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/20 rounded transition-colors"
               >
                 Resolve
               </button>
-
               <button
-                onClick={() => {
-                  setActiveAlert(a);
-                  setModalType("escalate");
-                }}
+                onClick={() => { setActiveAlert(a); setModalType("escalate"); }}
                 className="text-xs px-3 py-1 bg-red-600/10 hover:bg-red-600/20 text-red-400 border border-red-500/20 rounded transition-colors"
               >
                 Escalate
@@ -239,35 +237,19 @@ export default function EmergencyPage() {
         ))}
       </div>
 
-      {/* CLEAR CONFIRM MODAL */}
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-zinc-900 p-5 rounded w-[320px] border border-zinc-800 shadow-xl">
-            <h2 className="text-sm font-bold text-white mb-2">
-              ⚠️ Confirm Clear All Alerts
-            </h2>
-            <p className="text-xs text-zinc-400 mb-4 leading-relaxed">
-              This will permanently delete all emergency alerts from the system. You cannot recover them.
-            </p>
+            <h2 className="text-sm font-bold text-white mb-2">⚠️ Confirm Clear All Alerts</h2>
+            <p className="text-xs text-zinc-400 mb-4">This will permanently delete all alerts.</p>
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowClearConfirm(false)}
-                className="px-3 py-1.5 text-xs text-zinc-400 border border-zinc-800 rounded hover:bg-zinc-800 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={clearAlerts}
-                className="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition"
-              >
-                Yes, Clear
-              </button>
+              <button onClick={() => setShowClearConfirm(false)} className="px-3 py-1.5 text-xs text-zinc-400 border border-zinc-800 rounded">Cancel</button>
+              <button onClick={clearAlerts} className="px-3 py-1.5 text-xs bg-red-600 text-white rounded">Yes, Clear</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ACTION MODAL */}
       {activeAlert && modalType && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-zinc-900 p-5 rounded w-[320px] border border-zinc-800 shadow-xl">
@@ -277,58 +259,23 @@ export default function EmergencyPage() {
             </div>
 
             {modalType === "dispatch" && (
-              <button
-                onClick={() => updateStatus(activeAlert.id, { status: "dispatched" })}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 text-xs font-semibold rounded transition-colors"
-              >
-                CONFIRM DISPATCH
-              </button>
+              <button onClick={() => updateStatus(activeAlert.id, { status: "dispatched" })} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 text-xs font-semibold rounded">CONFIRM DISPATCH</button>
             )}
 
             {modalType === "resolve" && (
               <div className="flex gap-2">
-                <button
-                  onClick={() => updateStatus(activeAlert.id, { status: "resolved" })}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 text-xs font-semibold rounded transition-colors"
-                >
-                  RESOLVED
-                </button>
-                <button
-                  onClick={() => updateStatus(activeAlert.id, { status: "unresolved" })}
-                  className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2 text-xs font-semibold rounded transition-colors"
-                >
-                  UNRESOLVED
-                </button>
+                <button onClick={() => updateStatus(activeAlert.id, { status: "resolved" })} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 text-xs font-semibold rounded">RESOLVED</button>
+                <button onClick={() => updateStatus(activeAlert.id, { status: "unresolved" })} className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2 text-xs font-semibold rounded">UNRESOLVED</button>
               </div>
             )}
 
             {modalType === "escalate" && (
               <>
-                <select
-                  className="w-full p-2 bg-black border border-zinc-800 outline-none rounded text-xs text-zinc-200 mb-3"
-                  value={selectedAgency}
-                  onChange={(e) => setSelectedAgency(e.target.value)}
-                >
+                <select className="w-full p-2 bg-black border border-zinc-800 rounded text-xs text-zinc-200 mb-3" value={selectedAgency} onChange={(e) => setSelectedAgency(e.target.value)}>
                   <option value="">Select Agency</option>
-                  {agencies.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
-                  ))}
+                  {agencies.map((a) => <option key={a} value={a}>{a}</option>)}
                 </select>
-
-                <button
-                  disabled={!selectedAgency}
-                  onClick={() =>
-                    updateStatus(activeAlert.id, {
-                      status: "escalated",
-                      escalated_to: selectedAgency,
-                    })
-                  }
-                  className="w-full bg-red-600 hover:bg-red-700 text-white py-2 text-xs font-semibold rounded disabled:opacity-40 transition-colors"
-                >
-                  ESCALATE
-                </button>
+                <button disabled={!selectedAgency} onClick={() => updateStatus(activeAlert.id, { status: "escalated", escalated_to: selectedAgency })} className="w-full bg-red-600 hover:bg-red-700 text-white py-2 text-xs font-semibold rounded disabled:opacity-40">ESCALATE</button>
               </>
             )}
           </div>
