@@ -397,6 +397,7 @@ def clear_all_emergencies(db: Session = Depends(get_db)):
 
     except Exception as e:
         db.rollback()
+        print("CLEAR ERROR:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 # =========================
