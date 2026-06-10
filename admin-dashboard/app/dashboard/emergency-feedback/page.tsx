@@ -136,6 +136,7 @@ export default function EmergencyFeedbackPage() {
 
           {/* SYSTEM INTERACTIONS CONTROL INTERFACES */}
           <div className="flex items-center gap-2">
+            {/*
             <button
               onClick={handleClearFeedback}
               className="px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-[11px] font-medium transition-all bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20"
@@ -143,6 +144,7 @@ export default function EmergencyFeedbackPage() {
               <Trash2 size={12} />
               Clear Feedback
             </button>
+            */}
 
             {/* THEME TOGGLE */}
             <button
