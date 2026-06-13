@@ -157,13 +157,13 @@ export default function SuperAdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 antialiased font-sans text-[11px] flex relative">
+    <div className="min-h-screen bg-[#030712] text-slate-100 antialiased font-sans text-[11px] flex flex-col md:flex-row relative">
 
       {/* USERS MODAL */}
       {showUsersModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
 
-          <div className="w-full max-w-5xl bg-[#07101d] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+          <div className="w-full max-w-5xl h-[90vh] bg-[#07101d] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
 
             {/* HEADER */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-[#0b111e]">
@@ -192,7 +192,7 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* CONTENT */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 p-5 max-h-[75vh] overflow-y-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-3 md:p-5 h-full overflow-y-auto">
 
               {/* USERS */}
               <div className="bg-[#0b111e] rounded-xl border border-slate-800 overflow-hidden">
@@ -333,7 +333,7 @@ export default function SuperAdminDashboard() {
       )}
 
       {/* SIDEBAR */}
-      <aside className="w-56 bg-[#090d16] border-r border-slate-800/80 p-4 flex flex-col justify-between hidden md:flex shrink-0">
+      <aside className="w-full md:w-56 bg-[#090d16] border-b md:border-b-0 md:border-r border-slate-800/80 p-4 flex flex-col justify-between shrink-0">
         <div>
 
           <div className="flex items-center gap-2.5 px-1.5 py-3 mb-6 border-b border-slate-800/60">
@@ -392,12 +392,12 @@ export default function SuperAdminDashboard() {
       </aside>
 
       {/* MAIN */}
-      <main className="flex-1 p-6 lg:p-8 flex flex-col justify-between max-w-4xl mx-auto w-full">
+      <main className="flex-1 p-4 md:p-6 lg:p-8 flex flex-col justify-between w-full">
 
         <div>
 
           {/* HEADER */}
-          <div className="flex justify-between items-center mb-8 pb-4 border-b border-slate-800/60">
+          <div className="flex flex-col md:flex-row gap-3 md:gap-0 justify-between md:items-center mb-8 pb-4 border-b border-slate-800/60">
 
             <div className="flex items-center gap-2.5">
               <Activity size={14} className="text-[#38ef7d]" />
@@ -423,7 +423,7 @@ export default function SuperAdminDashboard() {
 
             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#00f2fe] via-[#38ef7d] to-[#00f2fe]" />
 
-            <div className="flex items-center justify-between mb-5 bg-[#040811]/90 p-3 rounded-lg border border-slate-800/80">
+            <div className="flex flex-col md:flex-row gap-3 md:gap-0 md:items-center justify-between mb-5 bg-[#040811]/90 p-3 rounded-lg border border-slate-800/80">
 
               <div className="flex items-center gap-2">
 
@@ -549,7 +549,7 @@ export default function SuperAdminDashboard() {
 
               </div>
 
-              <div className="flex justify-between items-center pt-4 border-t border-slate-800/80">
+              <div className="flex flex-col sm:flex-row gap-3 justify-between sm:items-center pt-4 border-t border-slate-800/80">
 
                 <button
                   type="button"
