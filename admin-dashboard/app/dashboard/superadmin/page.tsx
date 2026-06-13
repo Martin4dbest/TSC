@@ -163,7 +163,7 @@ export default function SuperAdminDashboard() {
       {showUsersModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
 
-          <div className="w-full max-w-5xl h-[90vh] bg-[#07101d] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+          <div className="w-full max-w-5xl max-h-[95vh] bg-[#07101d] border border-slate-800 rounded-2xl shadow-2xl flex flex-col">
 
             {/* HEADER */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-[#0b111e]">
@@ -192,10 +192,10 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* CONTENT */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-3 md:p-5 h-full overflow-y-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-3 md:p-5 overflow-y-auto max-h-[calc(90vh-80px)]">
 
               {/* USERS */}
-              <div className="bg-[#0b111e] rounded-xl border border-slate-800 overflow-hidden">
+              <div className="bg-[#0b111e] rounded-xl border border-slate-800 overflow-hidden flex flex-col">
                 <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Users size={14} className="text-[#38ef7d]" />
@@ -209,7 +209,7 @@ export default function SuperAdminDashboard() {
                   </span>
                 </div>
 
-                <div className="divide-y divide-slate-800">
+                <div className="divide-y divide-slate-800 overflow-y-auto">
                   {users.length === 0 ? (
                     <div className="p-6 text-center text-slate-500">
                       No registered users found
