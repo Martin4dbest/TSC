@@ -54,12 +54,12 @@ class Trip(Base):
     # =========================
     # STATUS
     # =========================
-    status = Column(String, default="ongoing")
+    status = Column(String, default="draft")
 
     # =========================
     # TIMESTAMPS
     # =========================
-    started_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
     ended_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

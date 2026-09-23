@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 
 import os
 
-from app.api.v1 import auth, users, wallet, admin, tracking, emergency, seed
+from app.api.v1 import auth, users, wallet, admin, tracking, emergency, safety_activation, seed
 
 # models (KEEP ONLY ONE SOURCE OF TRIP)
 from app.models.user import User
@@ -14,6 +14,7 @@ from app.models.tracking import TrackingLog
 from app.models.emergency import EmergencyAlert
 from app.models.emergency import EmergencyFeedback
 from app.models.trip import Trip
+from app.models.safety_activation import TripSafetyActivation
 
 from app.db.base_class import Base
 from app.db.session import engine
@@ -48,7 +49,7 @@ app.include_router(wallet.router, prefix="/api/v1/wallet", tags=["Wallet"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(tracking.router, prefix="/api/v1/tracking", tags=["Tracking"])
 app.include_router(emergency.router, prefix="/api/v1/emergency", tags=["Emergency"])
-app.include_router(seed.router, prefix="/api/v1")
+app.include_router(safety_activation.router, prefix="/api/v1", tags=["Trip Safety"])
 
 
 @app.get("/")

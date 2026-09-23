@@ -1,11 +1,8 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 
 
-# -------------------------------
-# Wallet Schemas
-# -------------------------------
 class WalletRead(BaseModel):
     id: int
     user_id: int
@@ -15,9 +12,6 @@ class WalletRead(BaseModel):
         from_attributes = True
 
 
-# -------------------------------
-# Transaction Schemas
-# -------------------------------
 class TransactionCreate(BaseModel):
     amount: float
     description: Optional[str] = None
@@ -27,8 +21,9 @@ class TransactionRead(BaseModel):
     id: int
     user_id: int
     amount: float
-    type: str  # credit / debit
-    description: Optional[str]
+    transaction_type: str
+    status: Optional[str] = None
+    reference: Optional[str] = None
     created_at: datetime
 
     class Config:
