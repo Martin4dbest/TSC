@@ -149,6 +149,11 @@ def decode_token_and_get_user(token: str, db):
         if not user_id:
             raise Exception("Invalid token payload")
 
+        try:
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            raise Exception("Invalid user ID in token")
+
         user = db.query(User).filter(User.id == user_id).first()
 
         if not user:
