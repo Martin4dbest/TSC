@@ -33,14 +33,21 @@ def get_current_user(
                 detail="Invalid token payload"
             )
 
+        try:
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid user ID in token"
+            )
+
     except JWTError as e:
-        # 🔥 THIS SHOWS REAL ERROR INSTEAD OF HIDING IT
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token error: {str(e)}"
         )
 
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user = db.query(User).filter(User.id == user_id).first()
 
     if not user:
         raise HTTPException(
@@ -49,7 +56,6 @@ def get_current_user(
         )
 
     return user
-
 
 # -------------------------
 # ADMIN CHECK
