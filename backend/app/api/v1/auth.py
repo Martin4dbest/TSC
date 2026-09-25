@@ -1,3 +1,4 @@
+from jose.exceptions import JWTError
 # app/api/v1/auth.py
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -124,5 +125,5 @@ def refresh_token(token: str):
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
 
-    except jwt.InvalidTokenError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")

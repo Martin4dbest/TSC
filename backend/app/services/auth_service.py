@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from jose import jwt
+from jose.exceptions import JWTError
 
 from app.models.user import User
 from app.core.security import (
@@ -158,5 +159,5 @@ def decode_token_and_get_user(token: str, db):
     except jwt.ExpiredSignatureError:
         raise Exception("Token expired")
 
-    except jwt.InvalidTokenError:
+    except JWTError:
         raise Exception("Invalid token")
