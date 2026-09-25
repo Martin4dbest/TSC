@@ -21,7 +21,6 @@ from app.services.wallet_service import (
 )
 
 router = APIRouter(
-    prefix="/wallet",
     tags=["Wallet"]
 )
 

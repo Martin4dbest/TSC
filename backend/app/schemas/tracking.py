@@ -42,7 +42,7 @@ class TripRead(BaseModel):
     safety_score: Optional[int] = 100
     risk_level: Optional[str] = "SAFE"
 
-    started_at: datetime
+    started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
 
     class Config:

@@ -4,9 +4,19 @@ from fastapi.staticfiles import StaticFiles
 
 import os
 
-from app.api.v1 import auth, users, wallet, admin, tracking, emergency, safety_activation, seed
+from app.api.v1 import (
+    auth,
+    users,
+    wallet,
+    admin,
+    tracking,
+    emergency,
+    safety_activation,
+    seed,
+    platform,
+)
 
-# models (KEEP ONLY ONE SOURCE OF TRIP)
+# Existing models
 from app.models.user import User
 from app.models.wallet import Wallet
 from app.models.transaction import Transaction
@@ -15,6 +25,19 @@ from app.models.emergency import EmergencyAlert
 from app.models.emergency import EmergencyFeedback
 from app.models.trip import Trip
 from app.models.safety_activation import TripSafetyActivation
+
+# New TSC platform models
+from app.models.tsc_platform import (
+    TscSafetyPolicy,
+    TscTripWorkflow,
+    TscTripBilling,
+    TscPayment,
+    TscClaim,
+    TscResponder,
+    TscDispatch,
+    TscPartner,
+    TscFxRate,
+)
 
 from app.db.base_class import Base
 from app.db.session import engine
@@ -27,11 +50,16 @@ os.makedirs("uploads", exist_ok=True)
 os.makedirs("uploads/screenshots", exist_ok=True)
 
 
-if os.getenv("ENV") == "development":
-    Base.metadata.create_all(bind=engine)
+# Safe additive table creation.
+# This creates missing tables and does not drop existing data.
+Base.metadata.create_all(bind=engine)
 
 
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount(
+    "/uploads",
+    StaticFiles(directory="uploads"),
+    name="uploads",
+)
 
 
 app.add_middleware(
@@ -43,15 +71,59 @@ app.add_middleware(
 )
 
 
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
-app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
-app.include_router(wallet.router, prefix="/api/v1/wallet", tags=["Wallet"])
-app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
-app.include_router(tracking.router, prefix="/api/v1/tracking", tags=["Tracking"])
-app.include_router(emergency.router, prefix="/api/v1/emergency", tags=["Emergency"])
-app.include_router(safety_activation.router, prefix="/api/v1", tags=["Trip Safety"])
+app.include_router(
+    auth.router,
+    prefix="/api/v1/auth",
+    tags=["Auth"],
+)
+
+app.include_router(
+    users.router,
+    prefix="/api/v1/users",
+    tags=["Users"],
+)
+
+app.include_router(
+    wallet.router,
+    prefix="/api/v1/wallet",
+    tags=["Wallet"],
+)
+
+app.include_router(
+    admin.router,
+    prefix="/api/v1/admin",
+    tags=["Admin"],
+)
+
+app.include_router(
+    tracking.router,
+    prefix="/api/v1/tracking",
+    tags=["Tracking"],
+)
+
+app.include_router(
+    emergency.router,
+    prefix="/api/v1/emergency",
+    tags=["Emergency"],
+)
+
+app.include_router(
+    safety_activation.router,
+    prefix="/api/v1",
+    tags=["Trip Safety"],
+)
+
+app.include_router(
+    platform.router,
+    prefix="/api/v1",
+    tags=["TSC Platform"],
+)
 
 
 @app.get("/")
 def root():
-    return {"message": "TSC Backend Running"}
+    return {
+        "message": "TSC Backend Running",
+        "platform": "TSC",
+        "architecture": "trip-safety-micro-insurance",
+    }
