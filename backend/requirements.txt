@@ -28,3 +28,4 @@ email-validator
 
 geopy
 argon2-cffi
+psycopg[binary]
